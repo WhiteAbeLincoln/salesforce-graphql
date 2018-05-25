@@ -11,3 +11,7 @@ build/docs
 coverage
 .nyc_output
 *.log
+.vscode
+.circleci
+examples
+scripts

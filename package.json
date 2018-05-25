@@ -2,29 +2,31 @@
   "name": "typescript-starter",
   "version": "1.0.0",
   "description": "Creates a GraphQL schema for a Salesforce instance",
-  "main": "build/main/index.js",
-  "typings": "build/main/index.d.ts",
-  "module": "build/module/index.js",
+  "main": "build/index.js",
+  "typings": "build/index.d.ts",
   "repository": "https://github.com/WhiteAbeLincoln/sf-graphql",
   "license": "MIT",
-  "keywords": [],
+  "keywords": [
+    "GraphQL",
+    "Salesforce",
+    "library"
+  ],
   "scripts": {
     "info": "npm-scripts-info",
     "build": "run-s clean && run-p build:*",
     "build:main": "tsc -p tsconfig.json",
-    "build:module": "tsc -p tsconfig.module.json",
     "fix": "run-s fix:*",
-    "fix:prettier": "prettier \"src/**/*.ts\" --write",
     "fix:tslint": "tslint --fix --project .",
     "test": "run-s build test:*",
-    "test:lint": "tslint --project . && prettier \"src/**/*.ts\" --list-different",
-    "test:unit": "nyc --silent ava",
+    "test:lint": "tslint --project . ",
+    "test:unit": "node ./scripts/test.js",
+    "test:unit:watch": "node ./scripts/test.js --watch",
     "test:nsp": "nsp check",
     "watch": "run-s clean build:main && run-p \"build:main -- -w\" \"test:unit -- --watch\"",
-    "cov": "run-s build test:unit cov:html && opn coverage/index.html",
-    "cov:html": "nyc report --reporter=html",
-    "cov:send": "nyc report --reporter=lcov > coverage.lcov && codecov",
-    "cov:check": "nyc report && nyc check-coverage --lines 100 --functions 100 --branches 100",
+    "cov": "run-s cov:html && opn coverage/index.html",
+    "cov:html": "node ./scripts/test.js --coverage --coverageReporters='html'",
+    "cov:send": "node ./scripts/test.js --coverage --coverageReporters='lcov' > coverage.lcov && codecov",
+    "cov:check": "node ./scripts/test.js --coverage",
     "doc": "run-s doc:html && opn build/docs/index.html",
     "doc:html": "typedoc src/ --target ES6 --mode file --out build/docs",
     "doc:json": "typedoc src/ --target ES6 --mode file --json build/docs/typedoc.json",
@@ -52,34 +54,73 @@
     "node": ">=8.9"
   },
   "dependencies": {
-    "sha.js": "^2.4.10"
+    "fp-ts": "^1.4.0",
+    "graphql": "^0.13.2",
+    "graphql-iso-date": "^3.5.0",
+    "immutable-containers": "^0.1.0",
+    "isemail": "^3.1.2",
+    "jsforce": "^1.8.4",
+    "mem": "^3.0.0"
   },
   "devDependencies": {
-    "ava": "^1.0.0-beta.3",
-    "codecov": "^3.0.0",
+    "@types/graphql": "^0.12.7",
+    "@types/graphql-iso-date": "^3.3.0",
+    "@types/jest": "^22.2.3",
+    "@types/mem": "^1.1.2",
+    "codecov": "^3.0.2",
     "cz-conventional-changelog": "^2.1.0",
-    "gh-pages": "^1.0.0",
+    "gh-pages": "^1.1.0",
+    "jest": "^22.4.4",
     "npm-run-all": "^4.1.2",
     "npm-scripts-info": "^0.3.6",
     "nsp": "^3.2.1",
-    "nyc": "^11.5.0",
     "opn-cli": "^3.1.0",
-    "prettier": "^1.10.2",
-    "standard-version": "^4.0.0",
+    "standard-version": "^4.3.0",
     "trash-cli": "^1.4.0",
-    "tslint": "^5.4.3",
-    "tslint-config-prettier": "^1.8.0",
+    "ts-jest": "^22.4.6",
+    "tslint": "^5.10.0",
     "tslint-immutable": "^4.5.1",
     "typedoc": "^0.11.1",
-    "typescript": "^2.4.1"
+    "typescript": "^2.8.3"
   },
-  "ava": {
-    "failFast": true,
-    "files": [
-      "build/main/**/*.spec.js"
+  "jest": {
+    "coverageThreshold": {
+      "global": {
+        "branches": 95,
+        "functions": 95,
+        "lines": 95,
+        "statements": -15
+      }
+    },
+    "collectCoverageFrom": [
+      "src/**/*.{js,jsx,mjs,ts,tsx}"
     ],
-    "sources": [
-      "build/main/**/*.js"
+    "coveragePathIgnorePatterns": [
+      "/node_modules/",
+      ".*.d.ts"
+    ],
+    "testMatch": [
+      "<rootDir>/src/**/__tests__/**/*.{js,jsx,mjs,ts,tsx}",
+      "<rootDir>/src/**/?(*.)(spec|test).{js,jsx,mjs,ts,tsx}"
+    ],
+    "testEnvironment": "node",
+    "testURL": "http://localhost",
+    "transform": {
+      "^.+\\.(ts|tsx)$": "<rootDir>/node_modules/ts-jest/preprocessor.js"
+    },
+    "transformIgnorePatterns": [
+      "[/\\\\]node_modules[/\\\\].+\\.(js|jsx|mjs|ts|tsx)$"
+    ],
+    "moduleFileExtensions": [
+      "web.js",
+      "js",
+      "json",
+      "web.jsx",
+      "jsx",
+      "node",
+      "mjs",
+      "ts",
+      "tsx"
     ]
   },
   "config": {
@@ -90,14 +131,6 @@
   "greenkeeper": {
     "ignore": [
       "@types/node"
-    ]
-  },
-  "prettier": {
-    "singleQuote": true
-  },
-  "nyc": {
-    "exclude": [
-      "**/*.spec.js"
     ]
   }
 }

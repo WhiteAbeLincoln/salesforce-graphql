@@ -1,0 +1,52 @@
+{
+  "actionOverrides": [],
+  "activateable": false,
+  "childRelationships": [],
+  "compactLayoutable": false,
+  "createable": true,
+  "custom": false,
+  "customSetting": false,
+  "deletable": true,
+  "deprecatedAndHidden": false,
+  "feedEnabled": false,
+  "fields": [],
+  "hasSubtypes": false,
+  "isSubtype": false,
+  "keyPrefix": "02Z",
+  "label": "No Field",
+  "labelPlural": "No Fields",
+  "layoutable": false,
+  "listviewable": null,
+  "lookupLayoutable": null,
+  "mergeable": false,
+  "mruEnabled": false,
+  "name": "NoFields",
+  "namedLayoutInfos": [],
+  "networkScopeFieldName": null,
+  "queryable": false,
+  "recordTypeInfos": [],
+  "replicateable": true,
+  "retrieveable": true,
+  "searchLayoutable": false,
+  "searchable": false,
+  "supportedScopes": [
+    { "label": "All organization contact roles", "name": "everything" },
+    { "label": "My organization contact roles", "name": "mine" },
+    {
+      "label": "Queue owned organization contact roles",
+      "name": "queue_owned"
+    },
+    { "label": "My team's organization contact roles", "name": "team" },
+    { "label": "User owned organization contact roles", "name": "user_owned" }
+  ],
+  "triggerable": false,
+  "undeletable": false,
+  "updateable": true,
+  "urls": {
+    "rowTemplate": "/services/data/v39.0/sobjects/AccountContactRole/{ID}",
+    "defaultValues":
+      "/services/data/v39.0/sobjects/AccountContactRole/defaultValues?recordTypeId&fields",
+    "describe": "/services/data/v39.0/sobjects/AccountContactRole/describe",
+    "sobject": "/services/data/v39.0/sobjects/AccountContactRole"
+  }
+}
