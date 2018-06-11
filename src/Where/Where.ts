@@ -6,6 +6,7 @@ import { mergeObjs } from '../util'
 import { FieldType } from 'jsforce'
 import { GraphQLDate, GraphQLDateTime, GraphQLTime } from 'graphql-iso-date'
 import { GraphQLEmailAddress, GraphQLURL, GraphQLSFID } from '../util/GraphQLScalars'
+import { createHash } from 'crypto'
 
 export type BooleanOp = 'AND' | 'OR' | 'NOT'
 export type ArrayComparisonStringOp = 'includes' | 'excludes'
@@ -58,26 +59,31 @@ export interface WhereLeaf {
   [field: string]: Partial<Operators>
 }
 
+const getHash = (str: string) => {
+  const match = /_(.*)/.exec(str)
+  return match && match[1]
+}
+
 // tslint:disable-next-line:variable-name
-const WhereNodeEntry = mem((whereNode: GraphQLInputObjectType, _leaf: GraphQLInputObjectType) => (
+const WhereNodeEntry = mem((whereNode: GraphQLInputObjectType) => (
   new GraphQLInputObjectType({
-    name: 'WhereNodeEntry'
+    name: `WhereNodeEntry_${getHash(whereNode.name) || whereNode.name}`
   , fields: () => ({
       OR: { type: new GraphQLList(whereNode), description: 'A logical OR of the values' }
     , AND: { type: new GraphQLList(whereNode), description: 'A logical AND of the values' }
     , NOT: { type: whereNode, description: 'A logical NOT of the value' }
     })
   })
-), { cacheKey: (_: any, leaf: GraphQLInputObjectType) => leaf.name })
+), { cacheKey: (where: GraphQLInputObjectType) => where.name })
 
 export const createWhereNode = mem((whereLeaf: GraphQLInputObjectType) => {
   // memoization replaces: if (name in whereNodeMap) return whereNodeMap[name]
   const node: GraphQLInputObjectType =  new GraphQLInputObjectType({
-    name: 'WhereNode'
+    name: `WhereNode_${getHash(whereLeaf.name) || whereLeaf.name}`
   , description: 'A Boolean expression as a tree'
   , fields: () => ({
       node: {
-        type: WhereNodeEntry(node, whereLeaf)
+        type: WhereNodeEntry(node)
       }
     , leaf: {
         type: whereLeaf
@@ -160,6 +166,8 @@ const getOperatorFieldsFor = (sftype: FieldType): GraphQLInputFieldConfigMap => 
     case 'textarea':
     case 'picklist':
     case 'location':
+    case 'address':
+    case 'complexvalue':
       return stringlikeOperators()
     case 'multipicklist':
       return multipicklistOperators()
@@ -181,12 +189,18 @@ const createOperatorObject = mem((sftype: FieldType) => (
   })
 ))
 
+const hashPairs = mem((fields: Array<[string, string]>) =>
+  createHash('md5')
+    .update(fields.map(f => `${f[0]}:${f[1]}`).join())
+    .digest('hex')
+)
+
 // tslint:disable-next-line:variable-name
 export const createWhereLeaf = mem((fields: Array<[string, FieldType]>) => (
   // tesxtarea cannot be specified in the where clause of a queryString of a query call
   new GraphQLInputObjectType({
-    name: 'WhereLeaf'
+    name: `WhereLeaf_${hashPairs(fields)}`
   , description: 'A leaf of a boolean expression tree: an expression that evaluates to a boolean'
-  , fields: () => mergeObjs(fields.map(f => ({ [f[0]]: { type: createOperatorObject(f[1]) } })))
+  , fields: () => mergeObjs(...fields.map(f => ({ [f[0]]: { type: createOperatorObject(f[1]) } })))
   })
 ))

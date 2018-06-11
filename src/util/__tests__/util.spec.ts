@@ -1,14 +1,6 @@
-import { some, none } from 'fp-ts/lib/Option'
-import { somes, joinNames, mergeObjs, mapObj, filterObj } from '../../util'
+import { joinNames, mergeObjs, mapObj, filterObj } from '../../util'
 
 // tslint:disable:no-expression-statement
-
-describe('somes', () => {
-  it('returns the some values from an array of Options', () => {
-    const arr = [some('hi'), some('there'), none]
-    expect(somes(arr)).toEqual(['hi', 'there'])
-  })
-})
 
 describe('joinNames', () => {
   it('transforms the list of strings to a camel-cased string', () => {
@@ -25,7 +17,7 @@ describe('joinNames', () => {
 describe('mergeObjs', () => {
   it('merges an array of objects into one new object', () => {
     const arr = [{a: 1}, {b: 2}]
-    const obj = mergeObjs(arr)
+    const obj = mergeObjs(...arr)
     arr.forEach(o => {
       expect(o === obj).toBeFalsy()
       expect(obj).toMatchObject(o)

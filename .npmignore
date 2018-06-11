@@ -15,3 +15,5 @@ coverage
 .circleci
 examples
 scripts
+**/__tests__
+**/__mocks__

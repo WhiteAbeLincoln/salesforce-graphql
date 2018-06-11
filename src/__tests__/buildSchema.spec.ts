@@ -1,208 +1,181 @@
 import { DescribeSObjectResult } from 'jsforce'
 import { readFileSync } from 'fs'
-import { IntermediateObject, isLeafField, isChildField, isParentField } from '../types'
+import { SalesforceObjectConfig, isLeafField, isChildField, isParentField,
+          salesforceObjectConfig, childField, parentField, leafField } from '../types'
 import { GraphQLSFID, GraphQLURL, GraphQLEmailAddress } from '../util/GraphQLScalars'
 import { GraphQLBoolean, GraphQLString, GraphQLFloat,
   GraphQLInt, GraphQLNonNull, GraphQLList, GraphQLObjectType,
-  GraphQLUnionType, GraphQLSchema, GraphQLFieldConfigMap, getNamedType } from 'graphql'
+  GraphQLUnionType, getNamedType } from 'graphql'
 import { GraphQLDateTime, GraphQLDate, GraphQLTime } from 'graphql-iso-date'
-import { makeObjects, buildGraphQLObjects, buildRootFields, buildSchema } from '../buildSchema'
+import { makeObjects, buildGraphQLObjects } from '../buildSchema'
 import { joinNames } from '../util'
+import { middleware as offsetMiddleware } from '../Pagination/Offset'
 // tslint:disable:no-expression-statement
 
-const objects: Array<[DescribeSObjectResult, IntermediateObject | undefined]>
+const objects: Array<[DescribeSObjectResult, SalesforceObjectConfig | undefined]>
   = [ [ JSON.parse(readFileSync('src/__tests__/describes/AccountContactRole.desc.json', 'utf8'))
-      , { name: 'AccountContactRole'
-        , description: 'Organization Contact Role'
-        , fields: {
-            Id: {
-              kind: 'leaf'
-            , type: new GraphQLNonNull(GraphQLSFID)
-            , sftype: 'id'
-            , filterable: true
-            , description: 'Contact Role ID'
-            }
-          , IsDeleted: {
-              kind: 'leaf'
-            , type: GraphQLBoolean
-            , sftype: 'boolean'
-            , filterable: true
-            , description: 'Deleted'
-            }
-          , CreatedDate: {
-              kind: 'leaf'
-            , type: GraphQLDateTime
-            , sftype: 'datetime'
-            , filterable: true
-            , description: 'Created Date'
-            }
-          , Base64: {
-              kind: 'leaf'
-            , type: GraphQLString
-            , sftype: 'base64'
-            , filterable: true
-            , description: 'Created Date'
-            }
-          , Percent: {
-              kind: 'leaf'
-            , type: GraphQLFloat
-            , sftype: 'percent'
-            , filterable: true
-            , description: 'Created Date'
-            }
-          , Email: {
-              kind: 'leaf'
-            , type: GraphQLEmailAddress
-            , sftype: 'email'
-            , filterable: true
-            , description: 'Created Date'
-            }
-          , Time: {
-              kind: 'leaf'
-            , type: GraphQLTime
-            , sftype: 'time'
-            , filterable: true
-            , description: 'Created Date'
-            }
-          , AccountId: {
-              kind: 'leaf'
-            , type: GraphQLSFID
-            , sftype: 'reference'
-            , filterable: true
-            , description: 'Organization'
-            }
-          , Account: {
-              kind: 'parent'
-            , referenceTo: ['Account']
-            , description: 'Parent Relationship to Account'
-            }
-          , InvalidParentId: {
-              kind: 'leaf'
-            , type: GraphQLSFID
-            , sftype: 'reference'
-            , filterable: true
-            , description: 'empty referenceTo'
-            }
-          , AccountRoleId: {
-              kind: 'leaf'
-            , type: GraphQLSFID
-            , sftype: 'reference'
-            , filterable: true
-            , description: 'Account Contact Union'
-            }
-          , AccountRole: {
-              kind: 'parent'
-            , referenceTo: ['Account', 'AccountContactRole']
-            , description: 'Parent Relationship to AccountAccountContactRole'
-            }
-          , Role: {
-              kind: 'leaf'
-            , type: GraphQLString
-            , sftype: 'picklist'
-            , filterable: true
-            , description: 'Role'
-            }
+      , salesforceObjectConfig('AccountContactRole', 'Organization Contact Role',
+          {
+            Id: leafField(
+              new GraphQLNonNull(GraphQLSFID)
+            , 'id'
+            , true
+            , 'Contact Role ID'
+            )
+          , IsDeleted: leafField(
+              GraphQLBoolean
+            , 'boolean'
+            , true
+            , 'Deleted'
+            )
+          , CreatedDate: leafField(
+              GraphQLDateTime
+            , 'datetime'
+            , true
+            , 'Created Date'
+            )
+          , Base64: leafField(
+              GraphQLString
+            , 'base64'
+            , true
+            , 'Created Date'
+            )
+          , Percent: leafField(
+              GraphQLFloat
+            , 'percent'
+            , true
+            , 'Created Date'
+            )
+          , Email: leafField(
+              GraphQLEmailAddress
+            , 'email'
+            , true
+            , 'Created Date'
+            )
+          , Time: leafField(
+              GraphQLTime
+            , 'time'
+            , true
+            , 'Created Date'
+            )
+          , AccountId: leafField(
+              GraphQLSFID
+            , 'reference'
+            , true
+            , 'Organization'
+            )
+          , Account: parentField(
+              ['Account']
+            , 'Parent Relationship to Account'
+            )
+          , InvalidParentId: leafField(
+              GraphQLSFID
+            , 'reference'
+            , true
+            , 'empty referenceTo'
+            )
+          , AccountRoleId: leafField(
+              GraphQLSFID
+            , 'reference'
+            , true
+            , 'Account Contact Union'
+            )
+          , AccountRole: parentField(
+              ['Account', 'AccountContactRole']
+            , 'Parent Relationship to AccountAccountContactRole'
+            )
+          , Role: leafField(
+              GraphQLString
+            , 'picklist'
+            , true
+            , 'Role'
+            )
           }
-        }
+        )
       ]
     , [ JSON.parse(readFileSync('src/__tests__/describes/Account.desc.json', 'utf8'))
-      , { name: 'Account'
-        , description: 'Organization'
-        , fields: {
-            ChildAccounts: {
-              kind: 'child'
-            , referenceTo: 'Account'
-            , description: 'Child Relationship to Account'
-            }
-          , AccountContactRoles: {
-              kind: 'child'
-            , referenceTo: 'AccountContactRole'
-            , description: 'Child Relationship to AccountContactRole'
-            }
-          , Id: {
-              kind: 'leaf'
-            , type: new GraphQLNonNull(GraphQLSFID)
-            , sftype: 'id'
-            , filterable: true
-            , description: 'Organization ID'
-            }
-          , IsDeleted: {
-              kind: 'leaf'
-            , type: GraphQLBoolean
-            , sftype: 'boolean'
-            , filterable: true
-            , description: 'Deleted'
-            }
-          , MasterRecordId: {
-              kind: 'leaf'
-            , type: GraphQLSFID
-            , sftype: 'reference'
-            , filterable: true
-            , description: 'Master Record ID'
-            }
-          , MasterRecord: {
-              kind: 'parent'
-            , referenceTo: ['Account']
-            , description: 'Parent Relationship to Account'
-            }
-          , Name: {
-              kind: 'leaf'
-            , type: GraphQLString
-            , sftype: 'string'
-            , filterable: true
-            , description: 'Organization Name'
-            }
-          , BillingStreet: {
-              kind: 'leaf'
-            , type: GraphQLString
-            , sftype: 'textarea'
-            , filterable: true
-            , description: 'Billing Street'
-            }
-          , BillingLatitude: {
-              kind: 'leaf'
-            , type: GraphQLFloat
-            , sftype: 'double'
-            , filterable: true
-            , description: 'Billing Latitude'
-            }
-          , Phone: {
-              kind: 'leaf'
-            , type: GraphQLString
-            , sftype: 'phone'
-            , filterable: true
-            , description: 'Organization Phone'
-            }
-          , Website: {
-              kind: 'leaf'
-            , type: GraphQLURL
-            , sftype: 'url'
-            , filterable: true
-            , description: 'Website'
-            }
-          , AnnualRevenue: {
-              kind: 'leaf'
-            , type: GraphQLFloat
-            , sftype: 'currency'
-            , filterable: true
-            , description: 'Annual Revenue'
-            }
-          , NumberOfEmployees: {
-              kind: 'leaf'
-            , type: GraphQLInt
-            , sftype: 'int'
-            , filterable: true
-            , description: 'Employees'
-            }
-          , LastActivityDate: {
-              kind: 'leaf'
-            , type: GraphQLDate
-            , sftype: 'date'
-            , filterable: true
-            , description: 'Last Activity'
-            }
+      , salesforceObjectConfig('Account', 'Organization',
+          {
+            ChildAccounts: childField(
+              'Account'
+            , 'Child Relationship to Account'
+            )
+          , AccountContactRoles: childField(
+              'AccountContactRole'
+            , 'Child Relationship to AccountContactRole'
+            )
+          , Id: leafField(
+              new GraphQLNonNull(GraphQLSFID)
+            , 'id'
+            , true
+            , 'Organization ID'
+            )
+          , IsDeleted: leafField(
+              GraphQLBoolean
+            , 'boolean'
+            , true
+            , 'Deleted'
+            )
+          , MasterRecordId: leafField(
+              GraphQLSFID
+            , 'reference'
+            , true
+            , 'Master Record ID'
+            )
+          , MasterRecord: parentField(
+              ['Account']
+            , 'Parent Relationship to Account'
+            )
+          , Name: leafField(
+              GraphQLString
+            , 'string'
+            , true
+            , 'Organization Name'
+            )
+          , BillingStreet: leafField(
+              GraphQLString
+            , 'textarea'
+            , true
+            , 'Billing Street'
+            )
+          , BillingLatitude: leafField(
+              GraphQLFloat
+            , 'double'
+            , true
+            , 'Billing Latitude'
+            )
+          , Phone: leafField(
+              GraphQLString
+            , 'phone'
+            , true
+            , 'Organization Phone'
+            )
+          , Website: leafField(
+              GraphQLURL
+            , 'url'
+            , true
+            , 'Website'
+            )
+          , AnnualRevenue: leafField(
+              GraphQLFloat
+            , 'currency'
+            , true
+            , 'Annual Revenue'
+            )
+          , NumberOfEmployees: leafField(
+              GraphQLInt
+            , 'int'
+            , true
+            , 'Employees'
+            )
+          , LastActivityDate: leafField(
+              GraphQLDate
+            , 'date'
+            , true
+            , 'Last Activity'
+            )
           }
-        }
+        )
       ]
     , [ JSON.parse(readFileSync('src/__tests__/describes/NoFields.desc.json', 'utf8')), undefined ]
     , [ JSON.parse(readFileSync('src/__tests__/describes/NotQueryable.desc.json', 'utf8')), undefined ]
@@ -218,11 +191,11 @@ describe('makeObjects', () => {
 })
 
 describe('buildGraphQLObjects', () => {
-  const inters = objects.map(([_, inter]) => inter).filter((i): i is IntermediateObject => Boolean(i))
-  const objs = buildGraphQLObjects(inters)
+  const inters = objects.map(([_, inter]) => inter).filter((i): i is SalesforceObjectConfig => Boolean(i))
+  const objs = buildGraphQLObjects(inters, offsetMiddleware)[1]
 
   inters.forEach(({ name, description, fields }) => {
-    const object = objs.find(v => v.name === name)!
+    const object = objs[name]
 
     it(`creates a GraphQL object with the same name for ${name}`, () => {
       expect(object).toBeDefined()
@@ -280,40 +253,22 @@ describe('buildGraphQLObjects', () => {
   })
 
   it('doesn\'t create duplicate objects', () => {
-    const account: IntermediateObject
-      = { name: 'Account'
-        , description: 'Account Description'
-        , fields: {
-            owner: {
-              kind: 'parent'
-            , referenceTo: ['Account']
-            , description: 'Account Owner'
-            }
-          , group: {
-              kind: 'parent'
-            , referenceTo: ['AccountGroup']
-            , description: 'Parent Group'
-            }
+    const account: SalesforceObjectConfig
+      = salesforceObjectConfig('Account', 'Account Description',
+          { owner: parentField(['Account'], 'Account Owner')
+          , group: parentField(['AccountGroup'], 'Parent Group')
           }
-        }
+    )
 
-    const accountGroup: IntermediateObject
-      = { name: 'AccountGroup'
-        , description: 'A Group of Accounts'
-        , fields: {
-            members: {
-              kind: 'child'
-            , referenceTo: 'Account'
-            , description: 'Group Members'
-            }
-          }
-        }
+    const accountGroup: SalesforceObjectConfig
+      = salesforceObjectConfig('AccountGroup', 'A Group of Accounts',
+        { members: childField('Account', 'GroupMembers') })
 
-    const objects = buildGraphQLObjects([account, accountGroup])
-    expect(objects).toHaveLength(2)
+    const objects = buildGraphQLObjects([account, accountGroup], offsetMiddleware)[1]
+    expect(Object.keys(objects)).toHaveLength(2)
 
-    const accountObj = objects.find(o => o.name === account.name)!
-    const accountGroupObj = objects.find(o => o.name === accountGroup.name)!
+    const accountObj = objects[account.name]
+    const accountGroupObj = objects[accountGroup.name]
 
     expect(accountObj).toBeDefined()
     expect(accountGroupObj).toBeDefined()
@@ -323,43 +278,5 @@ describe('buildGraphQLObjects', () => {
 
     expect(accountGroupObj.getFields().members.type).toEqual(new GraphQLList(accountObj))
     expect(getNamedType(accountGroupObj.getFields().members.type)).toBe(accountObj)
-  })
-})
-
-describe('buildRootFields', () => {
-  const inters = objects.map(([_, inter]) => inter).filter((i): i is IntermediateObject => Boolean(i))
-  const objs = buildGraphQLObjects(inters)
-
-  const rootFieldConfig = buildRootFields(objs)
-
-  objs.forEach(o => {
-    it(`created a root field for ${o.name}`, () => {
-      expect(rootFieldConfig[o.name]).toBeDefined()
-    })
-
-    it(`gave the correct type to the field for ${o.name}`, () => {
-      expect(rootFieldConfig[o.name].type).toEqual(new GraphQLList(o))
-    })
-  })
-})
-
-describe('buildSchema', () => {
-  const rootFieldConfig: GraphQLFieldConfigMap<any, any> = {
-    int: {
-      type: GraphQLInt
-    }
-  }
-
-  const schema = buildSchema(rootFieldConfig)
-
-  it('created a GraphQL schema', () => {
-    expect(schema instanceof GraphQLSchema).toBeTruthy()
-  })
-
-  it('created the root Query object', () => {
-    const queryType = schema.getQueryType()
-    expect(queryType).toBeDefined()
-    expect(queryType.name).toEqual('SalesforceQuery')
-    expect(queryType.getFields()).toMatchObject(rootFieldConfig)
   })
 })

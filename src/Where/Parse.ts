@@ -1,4 +1,4 @@
-import { ListArguments } from '../Arguments'
+import { WhereArguments } from './WhereArgs'
 import { Either, right, left, Right } from 'fp-ts/lib/Either'
 import { BiTree, BiTreeNode, BiTreeLeaf, mergeTrees } from '../util/BinaryTree'
 import { BooleanOp, WhereLeaf, WhereNode, ComparisonStringOp, PossibleValues } from './Where'
@@ -15,7 +15,7 @@ type WTree = BiTree<BooleanOp, BiWhereLeaf>
 type WTreeNode = BiTreeNode<BooleanOp, BiWhereLeaf>
 type WTreeLeaf = BiTreeLeaf<BiWhereLeaf>
 
-export const getWhereClause = (args: ListArguments): Either<string, string> => {
+export const getWhereClause = (args: WhereArguments): Either<string, string> => {
   const { filter, filterString } = args
   if (filter) {
     return convertToProperTree(filter).map(inorderTraversal)
@@ -59,12 +59,14 @@ const convertString = (s: string) => shouldNotQuote(s) ? s : `'${s}'`
 const convertValue = (value: PossibleValues): string => {
   const convert = (value: Exclude<PossibleValues, any[]>): string => {
     if (typeof value === 'string') return convertString(value)
-    else if (typeof value === 'number') return value.toString()
-    else if (typeof value === 'boolean') return value ? 'TRUE' : 'FALSE'
-    else if (value instanceof Date) return value.toISOString()
+    if (typeof value === 'number') return value.toString()
+    if (typeof value === 'boolean') return value ? 'TRUE' : 'FALSE'
+    if (value instanceof Date) return value.toISOString()
     // this ensures that if we forget an if case then the assignment fails
     // (only never can be assigned to the bottom type)
+    /* istanbul ignore next */
     const _exhaustiveCheck: never = value
+    /* istanbul ignore next */
     return _exhaustiveCheck
   }
 

@@ -9,21 +9,36 @@
       "cwd": "${workspaceFolder}/build",
       // Replace this with your project root. If there are multiple, you can
       // automatically run the currently visible file with: "program": ${file}"
-      "program": "${workspaceFolder}/src/cli/cli.ts",
+      "program": "${workspaceFolder}/build/index.js",
       // "args": ["--no-install"],
-      "outFiles": ["${workspaceFolder}/build/main/**/*.js"],
+      "outFiles": ["${workspaceFolder}/build/**/*.js"],
       "skipFiles": [
         "<node_internals>/**/*.js",
         "${workspaceFolder}/node_modules/**/*.js"
       ],
       "preLaunchTask": "npm: build",
-      "stopOnEntry": true,
       "smartStep": true,
       "runtimeArgs": ["--nolazy"],
       "env": {
         "TYPESCRIPT_STARTER_REPO_URL": "${workspaceFolder}"
-      },
-      "console": "externalTerminal"
+      }
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Debug example",
+      "program": "${workspaceFolder}/examples/cursorBased.js",
+      "outFiles": ["${workspaceFolder}/build/**/*.js"],
+      "skipFiles": [
+        "<node_internals>/**/*.js",
+        "${workspaceFolder}/node_modules/**/*.js"
+      ],
+      "preLaunchTask": "npm: build",
+      "smartStep": true,
+      "runtimeArgs": ["--nolazy"],
+      "env": {
+        "TYPESCRIPT_STARTER_REPO_URL": "${workspaceFolder}"
+      }
     },
     {
       /// Usage: set appropriate breakpoints in a *.spec.ts file, then open the

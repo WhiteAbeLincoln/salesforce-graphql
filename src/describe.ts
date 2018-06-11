@@ -1,7 +1,7 @@
 import { promisify } from 'util'
 import { readdir, readFile as readfile, mkdir, writeFile as writefile, stat as Stat, Stats } from 'fs'
 import { resolve } from 'path'
-import { DescribeSObjectResult, Connection } from 'jsforce'
+import { DescribeSObjectResult, Connection, ConnectionOptions } from 'jsforce'
 
 const readDir = promisify(readdir)
 const readFile = promisify(readfile)
@@ -69,9 +69,16 @@ export async function writeDescribeFiles(describes: ReadonlyArray<DescribeSObjec
  * @param conn A logged in connection to your salesforce instance
  * @returns An array of promises which resolve to SObjectMetadata objects
  */
-export async function describeSalesforceObjects(conn: Connection): Promise<DescribeList> {
+export async function describeSalesforceObjects(username: string,
+                                                password: string,
+                                                options: ConnectionOptions): Promise<DescribeList> {
+  const conn = new Connection(options)
+
+  // tslint:disable-next-line:no-expression-statement
+  await conn.login(username, password)
+
   // FIXME: We should not expose any jsforce dependencies in our external api. Ask for credentials instead and log in
   // Or we could take both credentials or a connection object allowing users of jsforce to use an existing connection
   const global = await conn.describeGlobal()
-  return global.sobjects.map(o => conn.sobject(o.name).describe$())
+  return global.sobjects.map(o => conn.sobject(o.name).describe())
 }

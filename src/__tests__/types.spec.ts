@@ -1,27 +1,19 @@
-import { ChildField, isChildField, ParentField, LeafField, isParentField, isLeafField } from '../types'
+import { isChildField, isParentField, isLeafField,
+  leafField, parentField, childField } from '../types'
 import { GraphQLString } from 'graphql'
 
 // tslint:disable:no-expression-statement
 
-const child: ChildField = {
-  kind: 'child'
-, referenceTo: 'hey'
-, description: 'hi'
-}
+const child = childField('hey', 'hi')
 
-const parent: ParentField = {
-  kind: 'parent'
-, referenceTo: ['a']
-, description: 'b'
-}
+const parent = parentField(['a'], 'b')
 
-const leaf: LeafField = {
-  kind: 'leaf'
-, type: GraphQLString
-, sftype: 'string'
-, filterable: true
-, description: 'hey'
-}
+const leaf = leafField(
+  GraphQLString
+, 'string'
+, true
+, 'hey'
+)
 
 describe('isChildField', () => {
   it('returns true given a ChildField', () => {
