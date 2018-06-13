@@ -18,6 +18,7 @@ export type FieldSet = ConcreteFieldSet | AbstractFieldSet
 export interface ConcreteFieldSet {
   kind: 'concrete'
   name: string
+  fieldName: string
   children?: FieldSet[]
   args: Record<string, any>
   type: Exclude<GraphQLOutputType, GraphQLAbstractType | GraphQLNonNull<any>>
@@ -28,6 +29,7 @@ export interface ConcreteFieldSet {
 export interface AbstractFieldSet {
   kind: 'abstract'
   name: string
+  fieldName: string
   args: Record<string, any>
   type: GraphQLAbstractType | GraphQLList<any> | GraphQLNonNull<GraphQLAbstractType | GraphQLList<any>>
   possibleSets: FieldSetCondition[]
@@ -220,6 +222,7 @@ const resolveObject = (info: GraphQLResolveInfo,
   // https://github.com/graphql/graphql-js/blob/54f631ff3238affdddb4dc736fc282b620d70b15/src/execution/execute.js#L685
   const fieldNode = fieldNodes[0]
   const fieldName = fieldNode.name.value
+  const alias = fieldNode.alias && fieldNode.alias.value
   // getFieldDef says it only takes a GraphQLObjectType, but it uses it only for parentType.getFields()[fieldName]
   // which is possible with GraphQLInterfaceType
   // FIXME: Don't rely on internal library behavior - we don't know when it could change
@@ -236,7 +239,8 @@ const resolveObject = (info: GraphQLResolveInfo,
     // field is a scalar
     const fieldSet: ConcreteFieldSet
       = { kind: 'concrete'
-        , name: fieldName
+        , fieldName
+        , name: alias || fieldName
         // we can't reduce fieldType by reducing namedType, since typescript doesn't know they're related
         // we don't have recursive types in typescript, so I can't properly represent the possible types for GraphQLList
         , type: fieldType as GraphQLScalarType
@@ -263,7 +267,8 @@ const resolveObject = (info: GraphQLResolveInfo,
 
     const fieldSet: AbstractFieldSet
       = { kind: 'abstract'
-        , name: fieldName
+        , fieldName
+        , name: alias || fieldName
         , args
         , type: fieldType as AbstractFieldSet['type']
         , possibleSets
@@ -276,7 +281,8 @@ const resolveObject = (info: GraphQLResolveInfo,
 
   const fieldSet: ConcreteFieldSet
     = { kind: 'concrete'
-      , name: fieldName
+      , fieldName
+      , name: alias || fieldName
       , children
       , type: fieldType as GraphQLObjectType | GraphQLList<any> | GraphQLNonNull<GraphQLObjectType | GraphQLList<any>>
       , args

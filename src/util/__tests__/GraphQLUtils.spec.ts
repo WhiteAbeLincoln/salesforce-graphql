@@ -26,7 +26,7 @@ describe('getFieldSet', () => {
         expect(value.children).toBeDefined()
         expect(value.children).toHaveLength(2)
 
-        expect(value.name).toEqual('hero')
+        expect(value.fieldName).toEqual('hero')
         expect(value.type).toEqual(new GraphQLNonNull(swSimpleSchema.getType('Human')!))
         expect(value.args).toEqual({ episode: 1 })
 
@@ -36,13 +36,13 @@ describe('getFieldSet', () => {
         expect(name).toBeDefined()
 
         if (id) {
-          expect(id.name).toEqual('id')
+          expect(id.fieldName).toEqual('id')
           expect(id.type).toEqual(new GraphQLNonNull(GraphQLString))
           expect(id.args).toEqual({})
         }
 
         if (name) {
-          expect(name.name).toEqual('name')
+          expect(name.fieldName).toEqual('name')
           expect(name.type).toEqual(GraphQLString)
           expect(name.args).toEqual({ encoding: 'UTF-8' })
         }
@@ -62,6 +62,70 @@ describe('getFieldSet', () => {
       }
     `
     return graphql(swSimpleSchema, query, simpleResolver()).then(data => {
+      if (data.errors && data.errors.length > 0) {
+        throw data.errors[0]
+      }
+    })
+  })
+
+  it('returns a FieldSet with correct names, types, and arguments for simple query with aliases', () => {
+    const query = `
+      query Simple {
+        hero(episode: 1) {
+          unicode: name(encoding: "UTF-8")
+          ascii: name(encoding: "ASCII")
+          id
+        }
+      }
+    `
+
+    const rootResolver = ({
+      hero(_1: never, _2: never, info: GraphQLResolveInfo) {
+        expect.assertions(19)
+        const value = getFieldSet(info)
+
+        expect(value).toBeDefined()
+        expect(value.kind).toBe('concrete')
+        if (value && value.kind === 'concrete') {
+          expect(value.children).toBeDefined()
+          expect(value.children).toHaveLength(3)
+
+          expect(value.fieldName).toEqual('hero')
+          expect(value.type).toEqual(new GraphQLNonNull(swSimpleSchema.getType('Human')!))
+          expect(value.args).toEqual({ episode: 1 })
+
+          const id = value.children!.find(c => c.name === 'id')
+          const unicode = value.children!.find(c => c.name === 'unicode')
+          const ascii = value.children!.find(c => c.name === 'ascii')
+
+          expect(id).toBeDefined()
+          expect(unicode).toBeDefined()
+          expect(ascii).toBeDefined()
+
+          if (id) {
+            expect(id.fieldName).toEqual('id')
+            expect(id.type).toEqual(new GraphQLNonNull(GraphQLString))
+            expect(id.args).toEqual({})
+          }
+
+          if (unicode) {
+            expect(unicode.fieldName).toEqual('name')
+            expect(unicode.type).toEqual(GraphQLString)
+            expect(unicode.args).toEqual({ encoding: 'UTF-8' })
+          }
+
+          if (ascii) {
+            expect(ascii.fieldName).toEqual('name')
+            expect(ascii.type).toEqual(GraphQLString)
+            expect(ascii.args).toEqual({ encoding: 'ASCII' })
+          }
+        }
+
+        return { name: 'hey', id: '100' }
+      }
+    })
+
+    return graphql(swSimpleSchema, query, rootResolver).then(data => {
       if (data.errors && data.errors.length > 0) {
         throw data.errors[0]
       }
@@ -165,20 +229,20 @@ describe('getFieldSet', () => {
             expect(fieldset.children).toHaveLength(2)
             expect(fieldset.possibleSets).toHaveLength(0)
 
-            const name = fieldset.children.find(c => c.name === 'name')
-            const appearsIn = fieldset.children.find(c => c.name === 'appearsIn')
+            const name = fieldset.children.find(c => c.fieldName === 'name')
+            const appearsIn = fieldset.children.find(c => c.fieldName === 'appearsIn')
 
             expect(name).toBeDefined()
             expect(appearsIn).toBeDefined()
 
             if (name) {
-              expect(name.name).toEqual('name')
+              expect(name.fieldName).toEqual('name')
               expect(name.type).toEqual(GraphQLString)
               expect(name.args).toEqual({})
             }
 
             if (appearsIn) {
-              expect(appearsIn.name).toEqual('appearsIn')
+              expect(appearsIn.fieldName).toEqual('appearsIn')
               expect(appearsIn.type).toEqual(new GraphQLList(swSchema.getType('Episode')!))
               expect(appearsIn.args).toEqual({})
             }
@@ -219,31 +283,31 @@ describe('getFieldSet', () => {
             expect(fieldset.children).toHaveLength(1)
             expect(fieldset.possibleSets).toHaveLength(0)
 
-            const friends = fieldset.children.find(c => c.name === 'friends')
+            const friends = fieldset.children.find(c => c.fieldName === 'friends')
             expect(friends).toBeDefined()
 
             if (friends) {
-              expect(friends.name).toEqual('friends')
+              expect(friends.fieldName).toEqual('friends')
               expect(friends.type).toEqual(new GraphQLList(swSchema.getType('Character')!))
               expect(friends.kind).toBe('abstract')
               if (friends.kind === 'abstract') {
                 expect(friends.children).toHaveLength(2)
                 const friendset = friends.children
 
-                const name = friendset.find(c => c.name === 'name')
-                const appearsIn = friendset.find(c => c.name === 'appearsIn')
+                const name = friendset.find(c => c.fieldName === 'name')
+                const appearsIn = friendset.find(c => c.fieldName === 'appearsIn')
 
                 expect(name).toBeDefined()
                 expect(appearsIn).toBeDefined()
 
                 if (name) {
-                  expect(name.name).toEqual('name')
+                  expect(name.fieldName).toEqual('name')
                   expect(name.type).toEqual(GraphQLString)
                   expect(name.args).toEqual({})
                 }
 
                 if (appearsIn) {
-                  expect(appearsIn.name).toEqual('appearsIn')
+                  expect(appearsIn.fieldName).toEqual('appearsIn')
                   expect(appearsIn.type).toEqual(new GraphQLList(swSchema.getType('Episode')!))
                   expect(appearsIn.args).toEqual({})
                 }
@@ -280,13 +344,13 @@ describe('getFieldSet', () => {
         expect(appearsIn).toBeDefined()
 
         if (name) {
-          expect(name.name).toEqual('name')
+          expect(name.fieldName).toEqual('name')
           expect(name.type).toEqual(GraphQLString)
           expect(name.args).toEqual({ encoding: 'UTF-8' })
         }
 
         if (appearsIn) {
-          expect(appearsIn.name).toEqual('appearsIn')
+          expect(appearsIn.fieldName).toEqual('appearsIn')
           expect(appearsIn.type).toEqual(new GraphQLList(swSchema.getType('Episode')!))
           expect(appearsIn.args).toEqual({})
         }
@@ -437,20 +501,20 @@ describe('getFieldSet', () => {
               const humanFields = ifHuman.fields as FieldSet[]
               expect(humanFields).toHaveLength(2)
 
-              const humanName = humanFields.find(f => f.name === 'name')
-              const humanPlanet = humanFields.find(f => f.name === 'homePlanet')
+              const humanName = humanFields.find(f => f.fieldName === 'name')
+              const humanPlanet = humanFields.find(f => f.fieldName === 'homePlanet')
 
               expect(humanName).toBeDefined()
               expect(humanPlanet).toBeDefined()
 
               if (humanName) {
-                expect(humanName.name).toBe('name')
+                expect(humanName.fieldName).toBe('name')
                 expect(humanName.type).toEqual(GraphQLString)
                 expect(humanName.args).toEqual({})
               }
 
               if (humanPlanet) {
-                expect(humanPlanet.name).toBe('homePlanet')
+                expect(humanPlanet.fieldName).toBe('homePlanet')
                 expect(humanPlanet.type).toEqual(GraphQLString)
                 expect(humanPlanet.args).toEqual({})
               }
@@ -462,20 +526,20 @@ describe('getFieldSet', () => {
               const droidFields = ifDroid.fields as FieldSet[]
               expect(droidFields).toHaveLength(2)
 
-              const droidName = droidFields.find(f => f.name === 'name')
-              const droidFunction = droidFields.find(f => f.name === 'primaryFunction')
+              const droidName = droidFields.find(f => f.fieldName === 'name')
+              const droidFunction = droidFields.find(f => f.fieldName === 'primaryFunction')
 
               expect(droidName).toBeDefined()
               expect(droidFunction).toBeDefined()
 
               if (droidName) {
-                expect(droidName.name).toBe('name')
+                expect(droidName.fieldName).toBe('name')
                 expect(droidName.type).toEqual(GraphQLString)
                 expect(droidName.args).toEqual({ encoding: 'DROIDESE' })
               }
 
               if (droidFunction) {
-                expect(droidFunction.name).toBe('primaryFunction')
+                expect(droidFunction.fieldName).toBe('primaryFunction')
                 expect(droidFunction.type).toEqual(GraphQLString)
                 expect(droidFunction.args).toEqual({})
               }
@@ -526,8 +590,8 @@ describe('getFieldSet', () => {
 
             const sharedFields = fieldset.children
 
-            const typename = sharedFields.find(f => f.name === '__typename')
-            const name = sharedFields.find(f => f.name === 'name')
+            const typename = sharedFields.find(f => f.fieldName === '__typename')
+            const name = sharedFields.find(f => f.fieldName === 'name')
 
             expect(typename).toBeDefined()
             expect(name).toBeDefined()
@@ -536,13 +600,13 @@ describe('getFieldSet', () => {
             expect(name!.kind).toBe('concrete')
 
             if (typename && typename.kind === 'concrete') {
-              expect(typename.name).toBe('__typename')
+              expect(typename.fieldName).toBe('__typename')
               expect(typename.type).toEqual(new GraphQLNonNull(GraphQLString))
               expect(typename.args).toEqual({})
             }
 
             if (name && name.kind === 'concrete') {
-              expect(name.name).toBe('name')
+              expect(name.fieldName).toBe('name')
               expect(name.type).toEqual(GraphQLString)
               expect(name.args).toEqual({ encoding: 'UTF-8' })
             }
@@ -558,12 +622,12 @@ describe('getFieldSet', () => {
               const humanFields = ifHuman.fields as FieldSet[]
               expect(humanFields).toHaveLength(1)
 
-              const humanPlanet = humanFields.find(f => f.name === 'homePlanet')
+              const humanPlanet = humanFields.find(f => f.fieldName === 'homePlanet')
 
               expect(humanPlanet).toBeDefined()
 
               if (humanPlanet) {
-                expect(humanPlanet.name).toBe('homePlanet')
+                expect(humanPlanet.fieldName).toBe('homePlanet')
                 expect(humanPlanet.type).toEqual(GraphQLString)
                 expect(humanPlanet.args).toEqual({})
               }
@@ -575,12 +639,12 @@ describe('getFieldSet', () => {
               const droidFields = ifDroid.fields as FieldSet[]
               expect(droidFields).toHaveLength(1)
 
-              const droidFunction = droidFields.find(f => f.name === 'primaryFunction')
+              const droidFunction = droidFields.find(f => f.fieldName === 'primaryFunction')
 
               expect(droidFunction).toBeDefined()
 
               if (droidFunction) {
-                expect(droidFunction.name).toBe('primaryFunction')
+                expect(droidFunction.fieldName).toBe('primaryFunction')
                 expect(droidFunction.type).toEqual(GraphQLString)
                 expect(droidFunction.args).toEqual({})
               }
@@ -629,8 +693,8 @@ describe('getFieldSet', () => {
 
             const sharedFields = fieldset.children
 
-            const typename = sharedFields.find(f => f.name === '__typename')
-            const name = sharedFields.find(f => f.name === 'name')
+            const typename = sharedFields.find(f => f.fieldName === '__typename')
+            const name = sharedFields.find(f => f.fieldName === 'name')
             expect(typename).toBeDefined()
             expect(name).toBeDefined()
 
@@ -638,13 +702,13 @@ describe('getFieldSet', () => {
             expect(name!.kind).toBe('concrete')
 
             if (typename && typename.kind === 'concrete') {
-              expect(typename.name).toBe('__typename')
+              expect(typename.fieldName).toBe('__typename')
               expect(typename.type).toEqual(new GraphQLNonNull(GraphQLString))
               expect(typename.args).toEqual({})
             }
 
             if (name && name.kind === 'concrete') {
-              expect(name.name).toBe('name')
+              expect(name.fieldName).toBe('name')
               expect(name.type).toEqual(GraphQLString)
               expect(name.args).toEqual({ encoding: 'UTF-8' })
             }
@@ -660,12 +724,12 @@ describe('getFieldSet', () => {
               const humanFields = ifHuman.fields as FieldSet[]
               expect(humanFields).toHaveLength(1)
 
-              const humanPlanet = humanFields.find(f => f.name === 'homePlanet')
+              const humanPlanet = humanFields.find(f => f.fieldName === 'homePlanet')
 
               expect(humanPlanet).toBeDefined()
 
               if (humanPlanet) {
-                expect(humanPlanet.name).toBe('homePlanet')
+                expect(humanPlanet.fieldName).toBe('homePlanet')
                 expect(humanPlanet.type).toEqual(GraphQLString)
                 expect(humanPlanet.args).toEqual({})
               }
@@ -677,12 +741,12 @@ describe('getFieldSet', () => {
               const droidFields = ifDroid.fields as FieldSet[]
               expect(droidFields).toHaveLength(1)
 
-              const droidFunction = droidFields.find(f => f.name === 'primaryFunction')
+              const droidFunction = droidFields.find(f => f.fieldName === 'primaryFunction')
 
               expect(droidFunction).toBeDefined()
 
               if (droidFunction) {
-                expect(droidFunction.name).toBe('primaryFunction')
+                expect(droidFunction.fieldName).toBe('primaryFunction')
                 expect(droidFunction.type).toEqual(GraphQLString)
                 expect(droidFunction.args).toEqual({})
               }
@@ -784,20 +848,20 @@ describe('getFieldSet', () => {
             const humanFields = ifHuman.fields as FieldSet[]
             expect(humanFields).toHaveLength(2)
 
-            const name = humanFields.find(c => c.name === 'name')
-            const appearsIn = humanFields.find(c => c.name === 'appearsIn')
+            const name = humanFields.find(c => c.fieldName === 'name')
+            const appearsIn = humanFields.find(c => c.fieldName === 'appearsIn')
 
             expect(name).toBeDefined()
             expect(appearsIn).toBeDefined()
 
             if (name) {
-              expect(name.name).toEqual('name')
+              expect(name.fieldName).toEqual('name')
               expect(name.type).toEqual(GraphQLString)
               expect(name.args).toEqual({ encoding: 'UTF-8' })
             }
 
             if (appearsIn) {
-              expect(appearsIn.name).toEqual('appearsIn')
+              expect(appearsIn.fieldName).toEqual('appearsIn')
               expect(appearsIn.type).toEqual(new GraphQLList(swSchema.getType('Episode')!))
               expect(appearsIn.args).toEqual({})
             }
@@ -858,7 +922,7 @@ describe('getFieldSet', () => {
         expect(typename!.kind).toBe('concrete')
 
         if (typename && typename.kind === 'concrete') {
-          expect(typename.name).toBe('__typename')
+          expect(typename.fieldName).toBe('__typename')
           expect(typename.type).toEqual(new GraphQLNonNull(GraphQLString))
           expect(typename.args).toEqual({})
         }
@@ -879,13 +943,13 @@ describe('getFieldSet', () => {
           expect(appearsIn).toBeDefined()
 
           if (name) {
-            expect(name.name).toEqual('name')
+            expect(name.fieldName).toEqual('name')
             expect(name.type).toEqual(GraphQLString)
             expect(name.args).toEqual({})
           }
 
           if (appearsIn) {
-            expect(appearsIn.name).toEqual('appearsIn')
+            expect(appearsIn.fieldName).toEqual('appearsIn')
             expect(appearsIn.type).toEqual(new GraphQLList(swUnionSchema.getType('Episode')!))
             expect(appearsIn.args).toEqual({})
           }
@@ -902,13 +966,13 @@ describe('getFieldSet', () => {
           expect(droidAppearsIn).toBeDefined()
 
           if (droidName) {
-            expect(droidName.name).toEqual('name')
+            expect(droidName.fieldName).toEqual('name')
             expect(droidName.type).toEqual(GraphQLString)
             expect(droidName.args).toEqual({ encoding: 'UTF-8' })
           }
 
           if (droidAppearsIn) {
-            expect(droidAppearsIn.name).toEqual('appearsIn')
+            expect(droidAppearsIn.fieldName).toEqual('appearsIn')
             expect(droidAppearsIn.type).toEqual(new GraphQLList(swUnionSchema.getType('Episode')!))
             expect(droidAppearsIn.args).toEqual({})
           }
@@ -998,20 +1062,20 @@ describe('getFieldSet', () => {
         const droidFields = ifDroid.fields as FieldSet[]
         expect(droidFields).toHaveLength(2)
 
-        const droidName = droidFields.find(c => c.name === 'name')
-        const droidAppearsIn = droidFields.find(c => c.name === 'appearsIn')
+        const droidName = droidFields.find(c => c.fieldName === 'name')
+        const droidAppearsIn = droidFields.find(c => c.fieldName === 'appearsIn')
 
         expect(droidName).toBeDefined()
         expect(droidAppearsIn).toBeDefined()
 
         if (droidName) {
-          expect(droidName.name).toEqual('name')
+          expect(droidName.fieldName).toEqual('name')
           expect(droidName.type).toEqual(GraphQLString)
           expect(droidName.args).toEqual({ encoding: 'UTF-8' })
         }
 
         if (droidAppearsIn) {
-          expect(droidAppearsIn.name).toEqual('appearsIn')
+          expect(droidAppearsIn.fieldName).toEqual('appearsIn')
           expect(droidAppearsIn.type).toEqual(new GraphQLList(swUnionSchema.getType('Episode')!))
           expect(droidAppearsIn.args).toEqual({})
         }
@@ -1030,12 +1094,12 @@ describe('getFieldSet', () => {
           expect(fieldset.possibleSets).toHaveLength(2)
           expect(fieldset.children).toHaveLength(1)
 
-          const typename = fieldset.children.find(f => f.name === '__typename')
+          const typename = fieldset.children.find(f => f.fieldName === '__typename')
           expect(typename).toBeDefined()
           expect(typename!.kind).toBe('concrete')
 
           if (typename && typename.kind === 'concrete') {
-            expect(typename.name).toBe('__typename')
+            expect(typename.fieldName).toBe('__typename')
             expect(typename.type).toEqual(new GraphQLNonNull(GraphQLString))
             expect(typename.args).toEqual({})
           }
@@ -1048,28 +1112,28 @@ describe('getFieldSet', () => {
             const humanFields = ifHuman.fields as FieldSet[]
             expect(humanFields).toHaveLength(3)
 
-            const name = humanFields.find(c => c.name === 'name')
-            const appearsIn = humanFields.find(c => c.name === 'appearsIn')
-            const friends = humanFields.find(c => c.name === 'friends')
+            const name = humanFields.find(c => c.fieldName === 'name')
+            const appearsIn = humanFields.find(c => c.fieldName === 'appearsIn')
+            const friends = humanFields.find(c => c.fieldName === 'friends')
 
             expect(name).toBeDefined()
             expect(appearsIn).toBeDefined()
             expect(friends).toBeDefined()
 
             if (name) {
-              expect(name.name).toEqual('name')
+              expect(name.fieldName).toEqual('name')
               expect(name.type).toEqual(GraphQLString)
               expect(name.args).toEqual({})
             }
 
             if (appearsIn) {
-              expect(appearsIn.name).toEqual('appearsIn')
+              expect(appearsIn.fieldName).toEqual('appearsIn')
               expect(appearsIn.type).toEqual(new GraphQLList(swUnionSchema.getType('Episode')!))
               expect(appearsIn.args).toEqual({})
             }
 
             if (friends) {
-              expect(friends.name).toEqual('friends')
+              expect(friends.fieldName).toEqual('friends')
               expect(friends.type).toEqual(new GraphQLList(swUnionSchema.getType('Character')!))
               expect(friends.args).toEqual({})
               expect(friends.kind).toBe('abstract')
