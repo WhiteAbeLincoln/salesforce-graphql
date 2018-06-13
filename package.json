@@ -102,7 +102,14 @@
     ],
     "coveragePathIgnorePatterns": [
       "/node_modules/",
-      ".*.d.ts"
+      ".*\\.d\\.ts",
+      "<rootDir>/src/(.*)?/__tests__/(.*)?\\.helper\\.ts",
+      "<rootDir>/src/(.*)?/__tests__/(.*)?__helper__(.*)"
+    ],
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "<rootDir>/src/(.*)?/__tests__/(.*)?\\.helper\\.ts",
+      "<rootDir>/src/(.*)?/__tests__/(.*)?__helper__(.*)"
     ],
     "testMatch": [
       "<rootDir>/src/**/__tests__/**/*.{js,jsx,mjs,ts,tsx}",

@@ -1,6 +1,6 @@
 import { Refinement, Predicate, tuple } from 'fp-ts/lib/function'
 import { ValueNode, StringValueNode, Kind, IntValueNode } from 'graphql'
-import { cons } from 'fp-ts/lib/Array';
+import { cons } from 'fp-ts/lib/Array'
 
 export const joinNames = (n: string[], append = ''): string => {
   return n.reduceRight((p, c) =>

@@ -149,8 +149,11 @@ const getFieldType = (field: SObjectField): Option<GraphQLLeafType | GraphQLNonN
 }
 
 const createUnion = mem(
-  (name: string, types: GraphQLObjectType[]) => new GraphQLUnionType({ name, types }),
-  { cacheKey: (n: string, _: any) => n }
+  (names: string[], types: GraphQLObjectType[]) =>
+    new GraphQLUnionType({ name: joinNames(names, 'Union')
+                         , description: `A union of ${names.join(', ')}`
+                         , types }),
+  { cacheKey: (n: string[], _: any) => n.join() }
 )
 
 const genFields = (obj: Readonly<ObjectConfig>,
@@ -194,7 +197,7 @@ const genFields = (obj: Readonly<ObjectConfig>,
 
       // if we have more than one name in the references array, then the type is a union of those
       const union = references.length > 1
-        && createUnion(joinNames(references, 'Union'), references.map(r => gqlObjects[r]))
+        && createUnion(references, references.map(r => gqlObjects[r]))
 
       // if we had more than one item in the references array, union is defined
       // otherwise use something from our objects map

@@ -77,8 +77,6 @@ export async function describeSalesforceObjects(username: string,
   // tslint:disable-next-line:no-expression-statement
   await conn.login(username, password)
 
-  // FIXME: We should not expose any jsforce dependencies in our external api. Ask for credentials instead and log in
-  // Or we could take both credentials or a connection object allowing users of jsforce to use an existing connection
   const global = await conn.describeGlobal()
   return global.sobjects.map(o => conn.sobject(o.name).describe())
 }

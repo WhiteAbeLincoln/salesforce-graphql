@@ -107,7 +107,7 @@ describe('createWhereNode', () => {
     const fleaf = fields.leaf
 
     expect(fnode.type instanceof GraphQLInputObjectType).toBeTruthy()
-    expect((fnode.type as GraphQLInputObjectType).name).toBe('WhereNodeEntry')
+    expect((fnode.type as GraphQLInputObjectType).name).toMatch('WhereNodeEntry')
     expect(fleaf.type instanceof GraphQLInputObjectType).toBeTruthy()
   })
 
