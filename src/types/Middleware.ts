@@ -7,7 +7,3 @@ export type BuildObjectsMiddleware = (
    parent: Readonly<ObjectConfig>,
    objectMap: { readonly [name: string]: GraphQLObjectType }
   ) => GraphQLFieldConfig<any, any>
-
-export type BuildRootMiddleware = (
-  obj: GraphQLObjectType
-) => GraphQLFieldConfig<any, any> | null

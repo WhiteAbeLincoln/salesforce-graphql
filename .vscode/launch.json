@@ -4,6 +4,25 @@
     {
       "type": "node",
       "request": "launch",
+      "name": "Debug Example",
+      "runtimeArgs": [
+        "--nolazy",
+        "-r",
+        "ts-node/register"
+      ],
+      "args": [
+        "${file}"
+      ],
+      "smartStep": true,
+      "outFiles": ["${workspaceFolder}/build/**/*.js"],
+      "skipFiles": [
+        "<node_internals>/**/*.js",
+        "${workspaceFolder}/node_modules/**/*.js"
+      ]
+    },
+    {
+      "type": "node",
+      "request": "launch",
       "name": "Debug Project",
       // we test in `build` to make cleanup fast and easy
       "cwd": "${workspaceFolder}/build",
@@ -26,7 +45,7 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "Debug example",
+      "name": "Debug cursor example",
       "program": "${workspaceFolder}/examples/cursorBased.js",
       "outFiles": ["${workspaceFolder}/build/**/*.js"],
       "skipFiles": [
@@ -46,7 +65,7 @@
       // the debugger will open the source *.spec.ts file for debugging.
       "type": "node",
       "request": "launch",
-      "name": "Debug Visible Compiled Spec",
+      "name": "Debug Test Spec",
       "program": "${workspaceFolder}/scripts/test.js",
       "args": [
         "${file}"

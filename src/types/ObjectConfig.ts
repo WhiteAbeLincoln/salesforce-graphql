@@ -119,5 +119,3 @@ export const isParentField = (field: FieldConfig): field is ParentField => field
 export const isLeafField = (field: FieldConfig): field is LeafField => field[FieldKind] === 'leaf'
 export const isReferenceField = (field: FieldConfig): field is ReferenceField => field[FieldKind] === 'reference'
 export const isSalesforceObject = (obj: ObjectConfig): obj is SalesforceObjectConfig => obj[ObjectKind] === 'salesforce'
-
-export type ExcludeKey<T, K extends keyof T> = { [P in Exclude<keyof T, K>]: T[P] }

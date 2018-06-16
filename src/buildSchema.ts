@@ -8,7 +8,7 @@ import { SalesforceFieldConfig, BuildObjectsMiddleware,
   salesforceObjectConfig, parentField,
   leafField, childField, ObjectConfig,
   isChildField, isParentField, isLeafField,
-  isReferenceField, ExcludeKey} from './types'
+  isReferenceField } from './types'
 import { joinNames, mapObj, mergeObjs } from './util'
 import { GraphQLSFID, GraphQLURL, GraphQLEmailAddress } from './util/GraphQLScalars'
 import { GraphQLDateTime, GraphQLDate, GraphQLTime } from 'graphql-iso-date'
@@ -225,15 +225,12 @@ export const buildGraphQLObjects =
 (objects: ReadonlyArray<ObjectConfig>,
  middleware: BuildObjectsMiddleware,
  initialMap: { readonly [name: string]: GraphQLObjectType } = {}
-): [ Array<GraphQLObjectType & ExcludeKey<ObjectConfig, 'fields'>>
-   , { readonly [name: string]: GraphQLObjectType & ExcludeKey<ObjectConfig, 'fields'> }
-   ] => {
-  type MergedGraphQLObject = GraphQLObjectType & ExcludeKey<ObjectConfig, 'fields'>
+): [ GraphQLObjectType[] , { readonly [name: string]: GraphQLObjectType } ] => {
 
-  const createdObjects: MergedGraphQLObject[] = []
+  const createdObjects: GraphQLObjectType[] = []
   const objectsMap = mergeObjs(...objects.map(obj => ({ [obj.name]: obj })))
 
-  const newObjMap: { [name: string]: MergedGraphQLObject }
+  const newObjMap: { [name: string]: GraphQLObjectType }
     = mergeObjs(initialMap, ...objects.map(obj => {
       const gqlobj = new GraphQLObjectType({
         // we want to keep some properties in the final object, so spread and cast to any to fix the type
@@ -242,7 +239,7 @@ export const buildGraphQLObjects =
         */
         ...obj as any
       , fields: () => genFields(obj, objectsMap, newObjMap, middleware)
-      }) as MergedGraphQLObject
+      })
 
       // we're being mutable here for the sake of performance
       // tslint:disable-next-line:no-expression-statement
@@ -251,7 +248,7 @@ export const buildGraphQLObjects =
       return {
         [obj.name]: gqlobj
       }
-    })) as any as { [name: string]: MergedGraphQLObject }
+    })) as any as { [name: string]: GraphQLObjectType }
 
   return tuple(createdObjects, newObjMap)
 }

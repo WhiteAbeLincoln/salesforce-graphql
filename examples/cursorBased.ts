@@ -1,13 +1,14 @@
 import { makeObjects, buildGraphQLObjects } from '../build/buildSchema'
-import { createConnections, middleware } from '../build/Pagination/Cursor'
+import { createConnections, middleware as cursorMiddleware } from '../build/Pagination/Cursor'
 import { describeSalesforceObjects, writeDescribeFiles, importDescribeFiles } from '../build/describe'
-import {  mergeObjs } from '../build/util'
+import {  mergeObjs, getFieldSet } from '../build/util'
 import { ConnectionOptions } from 'jsforce'
 import express from 'express'
 import graphqlHTTP, { OptionsResult } from 'express-graphql'
-import { GraphQLSchema } from 'graphql'
+import { GraphQLSchema, GraphQLFieldConfig } from 'graphql'
 import { flatten } from 'fp-ts/lib/Array'
-import { childField, salesforceObjectConfig } from '../build/types'
+import { childField, salesforceObjectConfig, BuildObjectsMiddleware } from '../build/types'
+import { Endomorphism } from 'fp-ts/lib/function'
 
 if (process.env.SF_USER
   && process.env.SF_PASS
@@ -42,6 +43,19 @@ if (process.env.SF_USER
 
       // use cursor style pagination
       const connectionConfigs = flatten(createConnections([...objects, rootQuery]))
+
+      const resolverMiddleware: Endomorphism<GraphQLFieldConfig<any, any>> = config => ({
+        ...config
+      , resolve: (_source, _args, _context, info) => {
+          // tslint:disable-next-line:no-console
+          console.log(info)
+          // tslint:disable-next-line:no-console
+          console.log(getFieldSet(info))
+        }
+      })
+
+      const middleware: BuildObjectsMiddleware = (field, fields, parent, objectMap) =>
+        resolverMiddleware(cursorMiddleware(field, fields, parent, objectMap))
 
       const gqlObjects = buildGraphQLObjects([...connectionConfigs, ...objects, rootQuery], middleware)
 

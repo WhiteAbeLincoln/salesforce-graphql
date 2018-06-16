@@ -1,4 +1,5 @@
 import { joinNames, mergeObjs, mapObj, filterObj } from '../../util'
+import { Node, maxHeight, partition } from '../util'
 
 // tslint:disable:no-expression-statement
 
@@ -44,5 +45,79 @@ describe('filterObj', () => {
     const obj = { a: 1, b: '2', c: false, d: '4' }
 
     expect(filterObj(strings)(obj)).toEqual({ b: '2', d: '4' })
+  })
+})
+
+describe('partition', () => {
+  it('filters an array into groups using the passed function map', () => {
+    const arr = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    const parted = partition(arr, {
+      even: x => x % 2 === 0
+    , odd: x => x % 2 !== 0
+    })
+
+    expect(parted.even.every(x => x % 2 === 0)).toBe(true)
+    expect(parted.odd.every(x => x % 2 !== 0)).toBe(true)
+  })
+
+  it('defaults to exclusive filtering', () => {
+    const arr = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    const parted = partition(arr, {
+      even: x => x % 2 === 0
+    , odd: x => x % 2 !== 0
+    , all: _ => true // should get all items
+    })
+
+    expect(parted.even.every(x => x % 2 === 0)).toBe(true)
+    expect(parted.odd.every(x => x % 2 !== 0)).toBe(true)
+    expect(parted.all).toHaveLength(0)
+  })
+
+  it('doesn\'t have to exclusively filter', () => {
+    const arr = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    const parted = partition(arr, {
+      even: x => x % 2 === 0
+    , odd: x => x % 2 !== 0
+    , all: _ => true // should get all items
+    }, false)
+
+    expect(parted.even.every(x => x % 2 === 0)).toBe(true)
+    expect(parted.odd.every(x => x % 2 !== 0)).toBe(true)
+    expect(parted.all).toEqual(arr)
+  })
+
+  it('reduces the types of the output map', () => {
+    const arr = [0, '1', 2, '3', 4, '5', 6, '7', 8, '9']
+    const parted: {
+      strings: string[]
+      numbers: number[]
+    } = partition(arr, {
+      strings: (x): x is string => typeof x === 'string'
+    , numbers: (x): x is number => typeof x === 'number'
+    })
+
+    expect(parted.strings).toHaveLength(5)
+    expect(parted.numbers).toHaveLength(5)
+  })
+})
+
+describe('maxHeight', () => {
+  it('gets the maximum height of a rose tree', () => {
+    const tree
+      = Node(1,
+        [ Node(2,
+          [ Node(3, []) ]
+          )
+        , Node(2, [])
+        , Node(2,
+          [ Node(3, [])
+          , Node(3, [])
+          , Node(3,
+            [ Node(4, []) ]
+            )
+          ])
+        ])
+
+    expect(maxHeight(tree)).toBe(4)
   })
 })
