@@ -1,9 +1,10 @@
-import { createWhereLeaf, createWhereNode, dateOperators,
-  stringlikeOperators, numberOperators, booleanOperators, multipicklistOperators } from '../../Where'
+import { dateOperators, stringlikeOperators, numberOperators,
+  booleanOperators, multipicklistOperators } from '../Operators'
 import { GraphQLInputObjectType } from 'graphql'
 import { tuple } from 'fp-ts/lib/function'
 import { FieldType } from 'jsforce'
-import { GraphQLEmailAddress, GraphQLURL, GraphQLSFID } from '../../util/GraphQLScalars'
+import { GraphQLEmailAddress, GraphQLURL, GraphQLSFID } from '../../GraphQLScalars'
+import { createWhereLeaf, createWhere } from '../WhereArgs'
 
 // tslint:disable:no-expression-statement
 const getLeafFields = () => {
@@ -80,39 +81,42 @@ describe('createWhereLeaf', () => {
         Object.keys(expected).map(k => {
           expect(operatorMap[k]).toBeDefined()
           const expectedType = expected[k].type
-          expect(operatorMap[k].type.toString()).toEqual(expectedType.toString())
+          expect(operatorMap[k].type).toEqual(expectedType)
         })
       })
     })
   })
 })
 
-describe('createWhereNode', () => {
+describe('createWhere', () => {
   const leaf = createWhereLeaf([['a', 'string'], ['b', 'string'], ['c', 'string']])
   it('creates a GraphQL Input Object', () => {
-    expect(createWhereNode(leaf) instanceof GraphQLInputObjectType).toBeTruthy()
+    const where = createWhere(leaf)
+    expect(where instanceof GraphQLInputObjectType).toBeTruthy()
+    expect(where.name).toMatch('Where')
   })
 
   it('creates an input object with the correct field names', () => {
-    const node = createWhereNode(leaf)
+    const node = createWhere(leaf)
     const fields = node.getFields()
     expect('node' in fields).toBeTruthy()
     expect('leaf' in fields).toBeTruthy()
   })
 
   it('creates an object with the correct field types', () => {
-    const node = createWhereNode(leaf)
+    const node = createWhere(leaf)
     const fields = node.getFields()
     const fnode = fields.node
     const fleaf = fields.leaf
 
     expect(fnode.type instanceof GraphQLInputObjectType).toBeTruthy()
-    expect((fnode.type as GraphQLInputObjectType).name).toMatch('WhereNodeEntry')
+    expect((fnode.type as GraphQLInputObjectType).name).toMatch('WhereNode')
     expect(fleaf.type instanceof GraphQLInputObjectType).toBeTruthy()
+    expect((fleaf.type as GraphQLInputObjectType).name).toMatch('WhereLeaf')
   })
 
   it('has a \'node\' subobject with fields OR AND and NOT', () => {
-    const node = createWhereNode(leaf)
+    const node = createWhere(leaf)
     const fields = node.getFields()
     const fnode = fields.node
 

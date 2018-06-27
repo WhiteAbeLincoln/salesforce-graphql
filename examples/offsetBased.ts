@@ -87,8 +87,6 @@ if (process.env.SF_USER
             const sfobjectName = qInfo.field.parentObj && qInfo.field.parentObj.name
             if (!sfobjectName) throw new Error('BLAHH')
 
-            
-
           }
         }
       })

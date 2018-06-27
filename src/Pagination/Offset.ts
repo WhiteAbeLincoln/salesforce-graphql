@@ -6,7 +6,7 @@ import mem from 'mem'
 import { joinNames } from '../util'
 import { GraphQLUnsignedInt } from '../util/GraphQLScalars'
 import { getArgFields } from '../util/arguments'
-import { WhereArguments, createWhereArgs } from '../Where/WhereArgs'
+import { WhereArguments, createWhereArgs } from '../util/GraphQLWhere/WhereArgs'
 import { FieldType } from 'jsforce'
 import { createHash } from 'crypto'
 

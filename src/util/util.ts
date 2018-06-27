@@ -71,6 +71,26 @@ export const unzipEithers = <L, R>(es: Array<Either<L, R>>): Either<L[], R[]> =>
   return eitherLefts.length > 0 ? left(eitherLefts) : right(rights(es))
 }
 
+/**
+ * Partitions an array into different subarrays using the provided map.
+ *
+ * `O(n*k)` running time, where `n` is the array size and `k` is the number of keys of the map
+ *
+ * Example
+ *
+ * ```ts
+ * partition([1, '2', 3, '4'], {
+ *  strings: (s): s is string => typeof s === 'string',
+ *  numbers: (s): s is number => typeof s === 'number',
+ *  }) // { strings: ['2', '4'], numbers: [1, 3] }
+ * ```
+ * @param as The array
+ * @param map A mapping between names and boolean functions.
+ *  If the function returns true when provided an element of the array, then that element will be
+ *  grouped under that name in the returned map
+ * @param exclusive If false indicates that an element can be in multiple groups
+ * @returns A mapping from names to selections of the array `as`
+ */
 export function partition<
                           T,
                           RefMap extends { readonly [key: string]: Refinement<T, T> | Predicate<T> }
@@ -78,8 +98,12 @@ export function partition<
                            map: RefMap,
                            exclusive = true
                           ): { [k in keyof RefMap]: Array<RefinementType1<RefMap[k]>> } {
+  // initially we want a map with the same fields as `map` but empty arrays as values
   const initial: ReturnType<typeof partition> = mapObj(() => [], map)
 
+  // for every item in the array,
+  // iterate over every function in the map,
+  // adding to the corresponding array if the item applied to the function is true
   return as.reduce((p, c) => {
     // tslint:disable-next-line:no-expression-statement
     for (const key of Object.keys(initial)) {
@@ -107,6 +131,10 @@ export interface RoseTree<A> {
 // tslint:disable-next-line:variable-name
 export const Node = <A>(rootLabel: A, subForest: Array<RoseTree<A>>): RoseTree<A> => ({ rootLabel, subForest })
 
+/**
+ * Finds the maximum height of a rose tree
+ * @param t The rose tree
+ */
 export const maxHeight = (t: RoseTree<any>): number => {
   if (t.subForest.length === 0) return 1
   return 1 + Math.max(...t.subForest.map(t => maxHeight(t)))
@@ -118,22 +146,22 @@ export const maxHeight = (t: RoseTree<any>): number => {
  * @param init The initial value (used if the rose tree has an empty forest)
  * @param tree The rose tree
  */
-export function foldRose<A, B>(f: (a: A, b: B) => B): (init: B) => (tree: RoseTree<A>) => B[]
+export function foldRosePaths<A, B>(f: (a: A, b: B) => B): (init: B) => (tree: RoseTree<A>) => B[]
 /**
  * Folds the function f over all the paths of a rose tree
  * @param f The folding function
  * @param init The initial value (used if the rose tree has an empty forest)
  * @param tree The rose tree
  */
-export function foldRose<A, B>(f: (a: A, b: B) => B, init: B): (tree: RoseTree<A>) => B[]
+export function foldRosePaths<A, B>(f: (a: A, b: B) => B, init: B): (tree: RoseTree<A>) => B[]
 /**
  * Folds the function f over all the paths of a rose tree
  * @param f The folding function
  * @param init The initial value (used if the rose tree has an empty forest)
  * @param tree The rose tree
  */
-export function foldRose<A, B>(f: (a: A, b: B) => B, init: B, tree: RoseTree<A>): B[]
-export function foldRose<A, B>(f: (a: A, b: B) => B, init?: B, tree?: RoseTree<A>): any {
+export function foldRosePaths<A, B>(f: (a: A, b: B) => B, init: B, tree: RoseTree<A>): B[]
+export function foldRosePaths<A, B>(f: (a: A, b: B) => B, init?: B, tree?: RoseTree<A>): any {
   /*
   https://stackoverflow.com/a/24032528
   Haskell code
@@ -172,12 +200,13 @@ export function foldRose<A, B>(f: (a: A, b: B) => B, init?: B, tree?: RoseTree<A
           = concat $ map ff ns
       */
       // fp-ts calls `concat` `flatten` for arrays
-      const ff = (n: RoseTree<A>) => foldRose(f, init, n).map(y => f(x, y))
+      const ff = (n: RoseTree<A>) => foldRosePaths(f, init, n).map(y => f(x, y))
       return flatten(ns.map(ff))
     }
 
   }
 
+  // allow curried or uncurried application
   switch (arguments.length) {
     case 1: return fun
     case 2: return fun(init!)

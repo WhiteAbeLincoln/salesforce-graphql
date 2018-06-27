@@ -1,24 +1,26 @@
-import { getWhereClause, convertToProperTree, BiWhereLeaf, inorderTraversal, WhereNode, BooleanOp } from '../../Where'
-import { BiTree, BiTreeNode, BiTreeLeaf } from '../../util/BinaryTree'
+import { getWhereClause, convertToProperTree } from '../Parse'
+import { BooleanOp, WhereTree, BooleanExpression } from '../../../SOQL/WhereTree'
+import { singleton, Node, empty } from '../../BinaryTree'
+import { FilterNode } from '../WhereArgs'
 
 // tslint:disable:no-expression-statement
 // tslint:disable:no-console
 const getInvalidTrees = () => {
-  const notEnoughForest1: WhereNode = {
+  const notEnoughForest1: FilterNode = {
     node: { AND: [ { } ] }
   }
 
-  const notEnoughForest2: WhereNode = {
+  const notEnoughForest2: FilterNode = {
     node: { OR: [ { } ] }
   }
 
-  const bothLeafAndNode: WhereNode =  { node: { AND: [] }
-                                      , leaf: { a: { gt: 'b' } } }
+  const bothLeafAndNode: FilterNode =  { node: { AND: [] }
+                                       , leaf: { a: { gt: 'b' } } }
 
-  const omitLeafAndNode: WhereNode = {}
-  const missingField: WhereNode = { leaf: {} }
-  const missingBoolOperator: WhereNode = { node: {} }
-  const missingCompOperator: WhereNode = { leaf: { a: { } } }
+  const omitLeafAndNode: FilterNode = {}
+  const missingField: FilterNode = { leaf: {} }
+  const missingBoolOperator: FilterNode = { node: {} }
+  const missingCompOperator: FilterNode = { leaf: { a: { } } }
 
   const invalidTrees =  [ notEnoughForest1
                         , notEnoughForest2
@@ -34,61 +36,62 @@ const getInvalidTrees = () => {
 
 const getValidTrees = () => {
   const now = new Date()
-  const numberValue: [WhereNode, BiTree<BooleanOp, BiWhereLeaf>]
+  const numberValue: [FilterNode, WhereTree]
     = [ { leaf: { a: { eq: 1 } } }
-      , BiTreeLeaf<BiWhereLeaf>({ field: 'a', op: '=', value: `1` })
+      , singleton<BooleanExpression>({ field: 'a', op: '=', value: 1 })
       ]
 
-  const dateValue: [WhereNode, BiTree<BooleanOp, BiWhereLeaf>]
+  const dateValue: [FilterNode, WhereTree]
     = [ { leaf: { a: { eq: now } } }
-      , BiTreeLeaf<BiWhereLeaf>({ field: 'a', op: '=', value: now.toISOString() })
+      , singleton<BooleanExpression>({ field: 'a', op: '=', value: now })
       ]
 
-  const stringValue: [WhereNode, BiTree<BooleanOp, BiWhereLeaf>]
+  const stringValue: [FilterNode, WhereTree]
     = [ { leaf: { a: { eq: `'b'` } } }
-      , BiTreeLeaf<BiWhereLeaf>({ field: 'a', op: '=', value: `'b'` })
+      , singleton<BooleanExpression>({ field: 'a', op: '=', value: `'b'` })
       ]
 
-  const booleanValue: [WhereNode, BiTree<BooleanOp, BiWhereLeaf>]
+  const booleanValue: [FilterNode, WhereTree]
     = [ { node: { OR: [
           { leaf: { a: { eq: true } } }
         , { leaf: { b: { eq: false } } }
         ] } }
-      , BiTreeNode('OR'
-        , BiTreeLeaf<BiWhereLeaf>({ field: 'a', op: '=', value: `TRUE` })
-        , BiTreeLeaf<BiWhereLeaf>({ field: 'b', op: '=', value: `FALSE` })
+      , new Node<BooleanOp | BooleanExpression>('OR'
+        , singleton<BooleanExpression>({ field: 'a', op: '=', value: true })
+        , singleton<BooleanExpression>({ field: 'b', op: '=', value: false })
         )
       ]
 
-  const includesCheck: [WhereNode, BiTree<BooleanOp, BiWhereLeaf>]
+  const includesCheck: [FilterNode, WhereTree]
     = [ { leaf: { a: { includes: [ 'a', 'b' ] } } }
-      , BiTreeLeaf<BiWhereLeaf>({ field: 'a', op: 'INCLUDES', value: `( 'a', 'b' )` })
+      , singleton<BooleanExpression>({ field: 'a', op: 'INCLUDES', value: ['a', 'b'] })
       ]
 
-  const multipleOperators: [WhereNode, BiTree<BooleanOp, BiWhereLeaf>]
+  const multipleOperators: [FilterNode, WhereTree]
     = [ { leaf: { a: { gt: 1, lt: 3 } } }
-      , BiTreeNode('AND'
-        , BiTreeLeaf<BiWhereLeaf>({ field: 'a', op: '>', value: '1' })
-        , BiTreeLeaf<BiWhereLeaf>({ field: 'a', op: '<', value: '3' })
+      , new Node<BooleanOp | BooleanExpression>('AND'
+        , singleton<BooleanExpression>({ field: 'a', op: '>', value: 1 })
+        , singleton<BooleanExpression>({ field: 'a', op: '<', value: 3 })
         )
       ]
 
-  const multipleFields: [WhereNode, BiTree<BooleanOp, BiWhereLeaf>]
+  const multipleFields: [FilterNode, WhereTree]
     = [ { leaf: { a: { gt: 1 }, b: { lt: 2 } } }
-      , BiTreeNode('AND'
-        , BiTreeLeaf<BiWhereLeaf>({ field: 'a', op: '>', value: '1' })
-        , BiTreeLeaf<BiWhereLeaf>({ field: 'b', op: '<', value: '2' })
+      , new Node<BooleanOp | BooleanExpression>('AND'
+        , singleton<BooleanExpression>({ field: 'a', op: '>', value: 1 })
+        , singleton<BooleanExpression>({ field: 'b', op: '<', value: 2 })
         )
       ]
 
-  const notTree: [WhereNode, BiTree<BooleanOp, BiWhereLeaf>]
+  const notTree: [FilterNode, WhereTree]
       = [ { node: { NOT: { leaf: { a: { eq: true } } } } }
-        , BiTreeNode('NOT'
-          , BiTreeLeaf<BiWhereLeaf>({ field: 'a', op: '=', value: `TRUE` })
+        , new Node<BooleanOp | BooleanExpression>('NOT'
+          , singleton<BooleanExpression>({ field: 'a', op: '=', value: true })
+          , empty
           )
         ]
 
-  const tree3: [WhereNode, BiTree<BooleanOp, BiWhereLeaf>]
+  const tree3: [FilterNode, WhereTree]
     = [ { node: { AND: [
             { leaf: { a: { eq: 'b' } } }
           , { leaf: { c: { gt: 'd' } } }
@@ -98,14 +101,14 @@ const getValidTrees = () => {
             ] } }
           ] }
         }
-      , BiTreeNode('AND'
-        , BiTreeNode('AND' as BooleanOp
-          , BiTreeLeaf<BiWhereLeaf>({ field: 'a', op: '=', value: `'b'` })
-          , BiTreeLeaf<BiWhereLeaf>({ field: 'c', op: '>', value: `'d'` })
+      , new Node<BooleanOp | BooleanExpression>('AND'
+        , new Node<BooleanOp | BooleanExpression>('AND'
+          , singleton<BooleanExpression>({ field: 'a', op: '=', value: 'b' })
+          , singleton<BooleanExpression>({ field: 'c', op: '>', value: 'd' })
           )
-        , BiTreeNode('OR'
-          , BiTreeLeaf<BiWhereLeaf>({ field: 'e', op: '<', value: `'f'` })
-          , BiTreeLeaf<BiWhereLeaf>({ field: 'g', op: 'LIKE', value: `'h'` })
+        , new Node<BooleanOp | BooleanExpression>('OR'
+          , singleton<BooleanExpression>({ field: 'e', op: '<', value: 'f' })
+          , singleton<BooleanExpression>({ field: 'g', op: 'LIKE', value: 'h' })
           )
         )
       ]
@@ -151,9 +154,7 @@ describe('getWhereClause', () => {
   })
 
   it('returns a Right(string) when provided a valid tree', () => {
-    const validTrees = getValidTrees().map(tp => tp[0])
-
-    validTrees.map(t => {
+    getValidTrees().map(([t, _]) => {
       const clause = getWhereClause({ filter: t })
       if (clause.isLeft()) console.log('FAIL:', clause.value, JSON.stringify(t))
 
@@ -173,7 +174,7 @@ describe('convertToProperTree', () => {
     })
   })
 
-  it('returns a Right(WTree) when provided a valid tree', () => {
+  it('returns a Right(WhereTree) when provided a valid tree', () => {
     getValidTrees().map(([t, _]) => {
       const bitree = convertToProperTree(t)
       if (bitree.isLeft()) console.log('FAIL: ', bitree.value, JSON.stringify(t))
@@ -186,7 +187,7 @@ describe('convertToProperTree', () => {
     getValidTrees().map(([t, bt]) => {
       const bitree = convertToProperTree(t)
       expect(bitree.isRight()).toBeTruthy()
-      expect(inorderTraversal(bitree.value as any)).toEqual(inorderTraversal(bt))
+      expect(bitree.value).toEqual(bt)
     })
   })
 })

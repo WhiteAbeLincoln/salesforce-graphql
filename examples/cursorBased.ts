@@ -1,13 +1,13 @@
-import { makeObjects, buildGraphQLObjects } from '../build/buildSchema'
-import { createConnections, middleware as cursorMiddleware } from '../build/Pagination/Cursor'
-import { describeSalesforceObjects, writeDescribeFiles, importDescribeFiles } from '../build/describe'
-import {  mergeObjs, getFieldSet } from '../build/util'
+import { makeObjects, buildGraphQLObjects } from '../src/buildSchema'
+import { createConnections, middleware as cursorMiddleware } from '../src/Pagination/Cursor'
+import { describeSalesforceObjects, writeDescribeFiles, importDescribeFiles } from '../src/describe'
+import {  mergeObjs, getFieldSet } from '../src/util'
 import { ConnectionOptions } from 'jsforce'
 import express from 'express'
 import graphqlHTTP, { OptionsResult } from 'express-graphql'
 import { GraphQLSchema, GraphQLFieldConfig } from 'graphql'
 import { flatten } from 'fp-ts/lib/Array'
-import { childField, salesforceObjectConfig, BuildObjectsMiddleware } from '../build/types'
+import { childField, salesforceObjectConfig, BuildObjectsMiddleware } from '../src/types'
 import { Endomorphism } from 'fp-ts/lib/function'
 
 if (process.env.SF_USER

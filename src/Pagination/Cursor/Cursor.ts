@@ -6,7 +6,7 @@ import { filterObj, joinNames, mapObj } from '../../util'
 import { GraphQLNonNull, GraphQLString, GraphQLList,
   GraphQLOutputType, GraphQLFieldConfigArgumentMap, GraphQLObjectType, GraphQLBoolean } from 'graphql'
 import mem from 'mem'
-import { createWhereArgs } from '../../Where/WhereArgs'
+import { createWhereArgs } from '../../util/GraphQLWhere/WhereArgs'
 import { getArgFields } from '../../util/arguments'
 import { GraphQLUnsignedInt } from '../../util/GraphQLScalars'
 
