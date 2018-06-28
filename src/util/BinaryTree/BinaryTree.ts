@@ -9,6 +9,7 @@ import { Monoid } from 'fp-ts/lib/Monoid'
 import { Traversable1 } from 'fp-ts/lib/Traversable'
 import { Applicative } from 'fp-ts/lib/Applicative'
 import { HKT } from 'fp-ts/lib/HKT'
+import { Tree, drawTree as drawRose } from 'fp-ts/lib/Tree'
 
 declare module 'fp-ts/lib/HKT' {
   interface URI2HKT<A> {
@@ -35,6 +36,7 @@ interface BiTreeBase<A> {
   readonly compare: (other: BiTree<A>, O?: Ord<A>) => Ordering
   readonly concat: (other: BiTree<A>) => BiTree<A>
   readonly traverse: <F, B>(F: Applicative<F>, f: (a: A) => HKT<F, B>) => HKT<F, BiTree<B>>
+  readonly height: () => number
 }
 
 // tslint:disable-next-line:no-class
@@ -101,6 +103,10 @@ export class Leaf<A> implements BiTreeBase<A> {
 
   traverse<F, B>(F: Applicative<F>, _f: (a: A) => HKT<F, B>): HKT<F, BiTree<B>> {
     return F.of(empty)
+  }
+
+  height(): number {
+    return 0
   }
 }
 
@@ -227,6 +233,9 @@ export class Node<A> implements BiTreeBase<A> {
     return new Node(this.value, this.left, this.right.concat(other))
   }
 
+  height(): number {
+    return 1 + Math.max(this.left.height(), this.right.height())
+  }
 }
 
 export const singleton = <A>(a: A) => new Node(a, empty, empty)
@@ -266,6 +275,39 @@ export const bitree: Functor1<URI>
 , map: (fa, f) => fa.map(f)
 , reduce: (fa, b, f) => fa.reduce(b, f)
 , traverse: F => (ta, f) => ta.traverse(F, f)
+}
+
+export const convertToRose = <T>(tree: Node<T>): Tree<T> => {
+  const left = tree.left.isLeaf() ? [] : [convertToRose(tree.left)]
+  const right = tree.right.isLeaf() ? [] : [convertToRose(tree.right)]
+  return new Tree(tree.value, [...left, ...right])
+}
+
+const convertStringTree = (tree: BiTree<string>): Node<string> => {
+  if (tree.isLeaf()) return singleton('()')
+  const left = convertStringTree(tree.left)
+  const right = convertStringTree(tree.right)
+  return new Node(`(${tree.value})`, left, right)
+}
+
+export const drawTree = (tree: BiTree<string>): string => {
+  // replace all leafs with a singleton('()')
+  // map all node values to '(${v})'
+  // then convert
+  return drawRose(convertToRose(convertStringTree(tree))).trim()
+}
+
+/**
+ * Transforms all nodes at depth n+1 to leaves
+ * @param depth The desired maximum depth of the tree
+ */
+export const truncateToDepth = <T>(depth: number, tree: BiTree<T>): BiTree<T> => {
+  if (depth === 0) return empty
+  if (tree.isLeaf()) return tree
+  const left = truncateToDepth(depth - 1, tree.left)
+  const right = truncateToDepth(depth - 1, tree.right)
+
+  return new Node(tree.value, left, right)
 }
 
 /**

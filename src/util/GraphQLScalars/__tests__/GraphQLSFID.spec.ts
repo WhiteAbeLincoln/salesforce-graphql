@@ -1,5 +1,6 @@
 import { GraphQLSchema, GraphQLObjectType, GraphQLFieldResolver, graphql, Kind } from 'graphql'
 import { GraphQLSFID, isSFID } from '../../../util/GraphQLScalars/GraphQLSFID'
+import { toString } from 'fp-ts/lib/function';
 
 // tslint:disable:no-expression-statement
 
@@ -42,7 +43,7 @@ describe('GraphQLSFID', () => {
     return graphql(schema, query).then(result => {
       const errors = result.errors
       expect(errors).toBeDefined()
-      expect(errors![0].message).toEqual(`Value does not represent a SFID: ${value}`)
+      expect(errors![0].message).toEqual(`Value does not represent a SFID: ${toString(value)}`)
     })
   })
 
@@ -53,7 +54,7 @@ describe('GraphQLSFID', () => {
     return graphql(schema, query).then(result => {
       const errors = result.errors
       expect(errors).toBeDefined()
-      expect(errors![0].message).toEqual(`Non-string value can't represent SFID: ${value}`)
+      expect(errors![0].message).toEqual(`Non-string value can't represent SFID: ${toString(value)}`)
     })
   })
 
@@ -84,7 +85,7 @@ describe('GraphQLSFID', () => {
     return graphql(schema, query).then(result => {
       const errors = result.errors
       expect(errors).toBeDefined()
-      expect(errors![0].message).toMatch(`Expected SFID value but got: ${value}`)
+      expect(errors![0].message).toMatch(`Expected SFID value but got: ${toString(value)}`)
     })
   })
 

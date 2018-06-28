@@ -17,15 +17,12 @@ export function mergeObjs<T>(...objs: Array<{ [x: string]: T}>): { [x: string]: 
 }
 
 // tslint:disable:max-line-length
-export function mapObj<T, U>(f: (value: T, key: string) => U | { key: string, value: U }): (obj: { [x: string]: T }) => { [x: string]: U }
-export function mapObj<T, U>(f: (value: T, key: string) => U | { key: string, value: U }, obj: { [x: string]: T }): { [x: string]: U }
-export function mapObj<T, U>(f: (value: T, key: string) => U | { key: string, value: U }, obj?: { [x: string]: T }): ((obj: { [x: string]: T }) => { [x: string]: U }) | { [x: string]: U } {
+export function mapObj<T, U>(f: (value: T, key: string) => U): (obj: { [x: string]: T }) => { [x: string]: U }
+export function mapObj<T, U>(f: (value: T, key: string) => U, obj: { [x: string]: T }): { [x: string]: U }
+export function mapObj<T, U>(f: (value: T, key: string) => U, obj?: { [x: string]: T }): ((obj: { [x: string]: T }) => { [x: string]: U }) | { [x: string]: U } {
   const fun = (obj: { [x: string]: T }): { [x: string]: U } =>
     mergeObjs(...Object.keys(obj).map(x => {
       const result = f(obj[x], x)
-      if (typeof result === 'object' && (result as any).key && typeof (result as any).value !== 'undefined') {
-        return { [(result as any).key]: (result as any).value }
-      }
       return { [x]: result }
     }))
 
@@ -65,6 +62,10 @@ export const unzip = <A, B>(pair: ReadonlyArray<[A, B]>): [A[], B[]] => (
   pair.reduce((p, c) => tuple(cons(c[0], p[0]), cons(c[1], p[1])), [[], []] as [A[], B[]])
 )
 
+/**
+ * Similar to `sequence`, but joins the lefts into a list
+ * @param es The array of eithers
+ */
 export const unzipEithers = <L, R>(es: Array<Either<L, R>>): Either<L[], R[]> => {
   // we should be able to optimize this with a generator
   // and length calculation (it will short circuit as soon as we get one left)
@@ -204,5 +205,19 @@ export function foldRosePaths<A, B>(f: (a: A, b: B) => B, init?: B, tree?: Tree<
     case 1: return fun
     case 2: return fun(init!)
     default: return fun(init!)(tree!)
+  }
+}
+
+export function truncateToDepth(depth: number): <T>(tree: Tree<T>) => Tree<T>
+export function truncateToDepth<T>(depth: number, tree: Tree<T>): Tree<T>
+export function truncateToDepth<T>(depth: number, tree?: Tree<T>): Tree<T> | (<T>(t: Tree<T>) => Tree<T>) {
+  const fun = <T>(tree: Tree<T>): Tree<T> => {
+    if (depth === 1) return new Tree(tree.value, [])
+    return new Tree(tree.value, tree.forest.map(truncateToDepth(depth - 1)))
+  }
+
+  switch (arguments.length) {
+    case 1: return fun
+    default: return fun(tree!)
   }
 }

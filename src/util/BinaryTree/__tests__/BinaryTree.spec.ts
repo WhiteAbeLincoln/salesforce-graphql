@@ -1,5 +1,5 @@
 import { Node, mergeTrees, singleton, empty, getSetoid,
-  getOrd, getSemigroup, getMonoid, bitree, BiTree } from '../BinaryTree'
+  getOrd, getSemigroup, getMonoid, bitree, BiTree, convertToRose, drawTree, truncateToDepth } from '../BinaryTree'
 import { right, Either, left } from 'fp-ts/lib/Either'
 import { cons, array } from 'fp-ts/lib/Array'
 import { flip } from '../../functional'
@@ -7,6 +7,8 @@ import { setoidNumber } from 'fp-ts/lib/Setoid'
 import { ordNumber } from 'fp-ts/lib/Ord'
 import { traverse, sequence } from 'fp-ts/lib/Traversable'
 import { option, Option, some, none } from 'fp-ts/lib/Option'
+import { Tree } from 'fp-ts/lib/Tree'
+import { toString } from 'fp-ts/lib/function'
 
 // tslint:disable:no-expression-statement
 
@@ -295,5 +297,131 @@ describe('mergeTrees', () => {
 
     expect([merged1, merged2].map(m => m.isLeft())).toEqual([true, true])
     expect([merged1, merged2].map(m => m.value)).toEqual([bad.value, bad.value])
+  })
+})
+
+describe('convertToRose', () => {
+  it('converts a simple tree into the equivalent rose tree', () => {
+    const binary = new Node(1, singleton(2), singleton(3))
+    const rose = new Tree(1, [new Tree(2, []), new Tree(3, [])])
+    expect(convertToRose(binary)).toEqual(rose)
+  })
+
+  it('converts a more complicated tree into the equivalent rose tree', () => {
+    const binary
+      = new Node(1
+        , new Node(2
+          , singleton(3)
+          , new Node(4
+            , singleton(5)
+            , singleton(6))
+          )
+        , singleton(7)
+        )
+
+    const rose
+      = new Tree(1
+        , [ new Tree(2
+            , [ new Tree(3, [])
+              , new Tree(4
+                , [ new Tree(5, [])
+                  , new Tree(6, [])
+                  ]
+                )
+              ]
+            )
+          , new Tree(7, [])
+          ]
+        )
+
+    expect(convertToRose(binary)).toEqual(rose)
+  })
+})
+
+describe('drawTree', () => {
+  it('returns a () for a leaf', () => {
+    expect(drawTree(empty)).toEqual('()')
+  })
+
+  it('draws the equivalent rose tree for a node', () => {
+    const binary1 = (new Node(1, singleton(2), singleton(3))).map(toString)
+    const binary2
+      = (new Node(1
+        , new Node(2
+          , singleton(3)
+          , new Node(4
+            , singleton(5)
+            , singleton(6))
+          )
+        , singleton(7)
+        )).map(toString)
+
+    expect(drawTree(binary1)).toEqual(
+`(1)
+├─ (2)
+   ├─ ()
+   └─ ()
+└─ (3)
+   ├─ ()
+   └─ ()`
+    )
+    expect(drawTree(binary2)).toEqual(
+`(1)
+├─ (2)
+   ├─ (3)
+      ├─ ()
+      └─ ()
+   └─ (4)
+      ├─ (5)
+         ├─ ()
+         └─ ()
+      └─ (6)
+         ├─ ()
+         └─ ()
+└─ (7)
+   ├─ ()
+   └─ ()`
+    )
+  })
+})
+
+describe('height', () => {
+  it('returns 0 for leaf', () => {
+    expect(empty.height()).toBe(0)
+  })
+
+  it('returns 1 + max(left.height, right.height) for node', () => {
+    expect(singleton('x').height()).toBe(1)
+    expect(new Node('x', new Node('y', singleton('z'), singleton('z')), singleton('y')).height()).toBe(3)
+  })
+})
+
+describe('truncateToDepth', () => {
+  it('truncates all leaves at depth greater than n', () => {
+    const tree4
+      = new Node(1
+        , new Node(2
+          , new Node(3
+            , singleton(4)
+            , singleton(4)
+            )
+          , new Node(3
+            , singleton(4)
+            , singleton(4)
+            )
+          )
+        , new Node(2
+          , new Node(3
+            , singleton(4)
+            , singleton(4)
+            )
+          , new Node(3
+            , singleton(4)
+            , singleton(4)
+            )
+          )
+        )
+
+    expect(truncateToDepth(3, tree4).height()).toBe(3)
   })
 })

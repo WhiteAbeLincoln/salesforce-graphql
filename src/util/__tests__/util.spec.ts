@@ -1,6 +1,6 @@
 import { joinNames, mergeObjs, mapObj, filterObj } from '../../util'
-import { maxHeight, partition } from '../util'
-import { Tree } from 'fp-ts/lib/Tree'
+import { maxHeight, partition, truncateToDepth } from '../util'
+import { Tree, tree } from 'fp-ts/lib/Tree'
 
 // tslint:disable:no-expression-statement
 
@@ -30,12 +30,10 @@ describe('mergeObjs', () => {
 describe('mapObj', () => {
   it('maps a function over the keys and values of an object', () => {
     const toString = (value: number) => value.toString()
-    const toStringKeys = (value: number, key: string) => ({ key: key + 'STRING', value: value.toString() })
 
     const obj = { a: 1, b: 2, c: 3 }
 
     expect(mapObj(toString)(obj)).toEqual({ a: '1', b: '2', c: '3' })
-    expect(mapObj(toStringKeys)(obj)).toEqual({ aSTRING: '1', bSTRING: '2', cSTRING: '3' })
   })
 })
 
@@ -120,5 +118,29 @@ describe('maxHeight', () => {
         ])
 
     expect(maxHeight(tree)).toBe(4)
+  })
+})
+
+describe('truncateToDepth', () => {
+  const tree4
+    = new Tree(1,
+      [ new Tree(2, [])
+      , new Tree(2, [])
+      , new Tree(2,
+        [ new Tree(3, [])
+        , new Tree(3,
+          [ new Tree(4, [])
+          , new Tree(4, [])
+          , new Tree(4, [])
+          ])
+        ])
+      ])
+
+  it('truncates all leaves at depth greater than n', () => {
+    expect(maxHeight(truncateToDepth(3, tree4))).toBe(3)
+  })
+
+  it('can also be called in a curried style', () => {
+    expect(maxHeight(truncateToDepth(3)(tree4))).toBe(3)
   })
 })
