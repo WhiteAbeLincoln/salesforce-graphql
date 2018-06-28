@@ -18,7 +18,8 @@
       "skipFiles": [
         "<node_internals>/**/*.js",
         "${workspaceFolder}/node_modules/**/*.js"
-      ]
+      ],
+      "envFile": "${workspaceFolder}/prod.env"
     },
     {
       "type": "node",

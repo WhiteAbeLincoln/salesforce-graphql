@@ -5,6 +5,7 @@ import { partition, foldRosePaths, unzipEithers, maxHeight } from '../util'
 import { compose, pipe } from 'fp-ts/lib/function'
 import { WhereTree, parseTree } from './WhereTree'
 import { Tree } from 'fp-ts/lib/Tree'
+import { Option, none, some } from 'fp-ts/lib/Option'
 
 export type FilterScope =
   | 'Delegated'
@@ -41,8 +42,8 @@ export interface SOQLQueryFilters {
   limit?: number
   offset?: number
   scope?: FilterScope
-  orderBy?: { dir: 'ASC' | 'DESC', nulls?: 'FIRST' | 'LAST' }
-  where?: WhereTree
+  orderBy?: { fields: NonEmptyArray<string>, dir: 'ASC' | 'DESC', nulls?: 'FIRST' | 'LAST' }
+  where?: WhereTree | string
   for?: NonEmptyArray<'VIEW' | 'REFERENCE' | 'UPDATE'>
   update?: NonEmptyArray<'TRACKING' | 'VIEWSTAT'>
 }
@@ -152,12 +153,14 @@ export const soql = (query: SOQLQuery | ChildQuery): Either<string, string> => {
   /* TYPEOF   */
   /* FROM     */ , append(`FROM ${query.object}`)
   /* SCOPE    */ , append(typeof query.scope === 'string' && `USING SCOPE ${query.scope}`)
-  /* WHERE    */ , append(typeof query.where !== 'undefined' && `WHERE ${parseTree(query.where)}`)
+  /* WHERE    */ , append(typeof query.where !== 'undefined'
+    && getWhere(query.where).map(w => `WHERE ${w}`).getOrElse(''))
   /* WITH     */
   /* GROUP BY */
   /* ORDER BY */ , append(
       typeof query.orderBy !== 'undefined'
-        && `ORDER BY ${query.orderBy.dir}${query.orderBy.nulls ? ' ' + query.orderBy : ''}`)
+        // tslint:disable-next-line:max-line-length
+        && `ORDER BY ${query.orderBy.fields.join(', ')} ${query.orderBy.dir}${query.orderBy.nulls ? ' NULLS ' + query.orderBy.nulls : ''}`)
   /* LIMIT    */ , append(typeof query.limit === 'number' && `LIMIT ${query.limit}`)
   /* OFFSET   */ , append(typeof query.offset === 'number' && `OFFSET ${query.offset}`)
   /* FOR      */ , append(typeof query.for !== 'undefined' && `FOR ${[...new Set(query.for)].join(', ')}`)
@@ -166,6 +169,12 @@ export const soql = (query: SOQLQuery | ChildQuery): Either<string, string> => {
         && `UPDATE ${[...new Set(query.update)].join(', ')}`)
     ))
     .mapLeft(s => s.join('\n')) // join errors with newline
+}
+
+const getWhere = (where: string | WhereTree): Option<string> => {
+  const whereStr = typeof where === 'string' ? where : parseTree(where)
+
+  return whereStr === '' ? none : some(whereStr)
 }
 
 const append = (appendStr: string | undefined | null | false) => (prependStr: string) =>

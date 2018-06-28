@@ -1,6 +1,6 @@
 import { getWhereClause, convertToProperTree } from '../Parse'
 import { BooleanOp, WhereTree, BooleanExpression } from '../../../SOQL/WhereTree'
-import { singleton, Node, empty } from '../../BinaryTree'
+import { singleton, Node, empty, Leaf } from '../../BinaryTree'
 import { FilterNode } from '../WhereArgs'
 
 // tslint:disable:no-expression-statement
@@ -136,9 +136,9 @@ describe('getWhereClause', () => {
     expect(clause.value).toEqual(string)
   })
 
-  it('returns a Right(\'\') when provided no arguments', () => {
+  it('returns a Right(WhereTree.empty) when provided no arguments', () => {
     expect(getWhereClause({}).isRight()).toBeTruthy()
-    expect(getWhereClause({}).value).toBe('')
+    expect(getWhereClause({}).value).toBe(empty)
   })
 
   it('returns a Left(string) when provided an invalid tree', () => {
@@ -153,13 +153,14 @@ describe('getWhereClause', () => {
     })
   })
 
-  it('returns a Right(string) when provided a valid tree', () => {
+  it('returns a Right(string | WhereTree) when provided a valid tree', () => {
     getValidTrees().map(([t, _]) => {
       const clause = getWhereClause({ filter: t })
-      if (clause.isLeft()) console.log('FAIL:', clause.value, JSON.stringify(t))
-
-      expect(clause.isRight()).toBeTruthy()
-      expect(typeof clause.value === 'string').toBeTruthy()
+      if (clause.isLeft()) console.log('FAIL:', clause, JSON.stringify(t))
+      expect(clause.isRight()).toBe(true)
+      expect(typeof clause.value === 'string'
+        || clause.value instanceof Node
+        || clause.value instanceof Leaf).toBe(true)
     })
   })
 })

@@ -7,11 +7,11 @@ export const isSFID = (value: string) => SFID_REGEX.test(value)
 
 const coerceSFID = (value: any) => {
   if (typeof value !== 'string') {
-    throw new TypeError(`Non-string value can't represent SFID: ${value}`)
+    throw new TypeError(`Non-string value can't represent SFID: ${JSON.stringify(value)}`)
   }
 
   if (!isSFID(value)) {
-    throw new TypeError(`Value does not represent a SFID: ${value}`)
+    throw new TypeError(`Value does not represent a SFID: ${JSON.stringify(value)}`)
   }
 
   return value

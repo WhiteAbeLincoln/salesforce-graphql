@@ -1,13 +1,13 @@
 import { WhereArguments, FilterNode, FilterLeaf } from './WhereArgs'
 import { Either, left, right, Right } from 'fp-ts/lib/Either'
 import { convertOp, ComparisonStringOp } from './Operators'
-import { WhereTreeNode, BooleanOp, WhereTree, parseTree, BooleanExpression } from '../../SOQL/WhereTree'
+import { WhereTreeNode, BooleanOp, WhereTree, BooleanExpression } from '../../SOQL/WhereTree'
 import { mergeTrees, empty, singleton } from '../BinaryTree'
 
-export const getWhereClause = (args: WhereArguments): Either<string, string> => {
+export const getWhereClause = (args: WhereArguments): Either<string, WhereTree | string> => {
   const { filter, filterString } = args
   if (filter) {
-    return convertToProperTree(filter).map(parseTree)
+    return convertToProperTree(filter)
   }
 
   if (filterString) {
@@ -15,7 +15,7 @@ export const getWhereClause = (args: WhereArguments): Either<string, string> => 
     return right(filterString)
   }
 
-  return right('')
+  return right(empty)
 }
 
 const binaryFromForest = ({ AND, OR, NOT }: NonNullable<FilterNode['node']>): Either<string, WhereTreeNode> => {

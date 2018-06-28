@@ -9,9 +9,11 @@ import { getArgFields } from '../util/arguments'
 import { WhereArguments, createWhereArgs } from '../util/GraphQLWhere/WhereArgs'
 import { FieldType } from 'jsforce'
 import { createHash } from 'crypto'
+import { SOQLQueryFilters } from '../SOQL/SOQL'
 
 export interface ListArguments extends WhereArguments {
-  orderBy?: { fields: string[], direction: 'ASC' | 'DESC', nulls: 'FIRST' | 'LAST' }
+  // Does it really make sense to include null ordering? I don't think GraphQL returns nulls
+  orderBy?: SOQLQueryFilters['orderBy']
   offset?: number
   limit?: number
 }
@@ -49,13 +51,13 @@ const FirstLastEnum = new GraphQLEnumType({
 })
 
 const createOrderBy = mem((fieldNames: string[]) => {
-  const fields: { [name in keyof Required<ListArguments>['orderBy']]: GraphQLInputFieldConfig }
+  const fields: { [name in keyof Required<ListArguments['orderBy']>]: GraphQLInputFieldConfig }
     = {
         fields: {
           type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(FieldEnum(fieldNames))))
         }
-      , direction: {
-          type: DirectionEnum
+      , dir: {
+          type: new GraphQLNonNull(DirectionEnum)
         , description:
             'Specifies whether the results are ordered in ascending (ASC) or descending (DESC) order. Default ASC'
         }
