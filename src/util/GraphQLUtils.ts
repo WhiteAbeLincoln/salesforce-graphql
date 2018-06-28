@@ -17,7 +17,9 @@ export type FieldSet = ConcreteFieldSet | AbstractFieldSet
 
 export interface ConcreteFieldSet {
   kind: 'concrete'
+  /** alias or fieldName */
   name: string
+  /** actual field name */
   fieldName: string
   children?: FieldSet[]
   args: Record<string, any>

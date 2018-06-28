@@ -3,6 +3,7 @@ import { ValueNode, StringValueNode, Kind, IntValueNode } from 'graphql'
 import { cons, flatten, lefts, rights } from 'fp-ts/lib/Array'
 import { Either, left, right } from 'fp-ts/lib/Either'
 import { RefinementType1 } from '../types'
+import { Tree } from 'fp-ts/lib/Tree'
 
 export const joinNames = (n: string[], append = ''): string => {
   return n.reduceRight((p, c) =>
@@ -123,21 +124,13 @@ export function partition<
   }, initial) as any
 }
 
-export interface RoseTree<A> {
-  rootLabel: A
-  subForest: this[]
-}
-
-// tslint:disable-next-line:variable-name
-export const Node = <A>(rootLabel: A, subForest: Array<RoseTree<A>>): RoseTree<A> => ({ rootLabel, subForest })
-
 /**
  * Finds the maximum height of a rose tree
  * @param t The rose tree
  */
-export const maxHeight = (t: RoseTree<any>): number => {
-  if (t.subForest.length === 0) return 1
-  return 1 + Math.max(...t.subForest.map(t => maxHeight(t)))
+export const maxHeight = (t: Tree<any>): number => {
+  if (t.forest.length === 0) return 1
+  return 1 + Math.max(...t.forest.map(t => maxHeight(t)))
 }
 
 /**
@@ -146,31 +139,31 @@ export const maxHeight = (t: RoseTree<any>): number => {
  * @param init The initial value (used if the rose tree has an empty forest)
  * @param tree The rose tree
  */
-export function foldRosePaths<A, B>(f: (a: A, b: B) => B): (init: B) => (tree: RoseTree<A>) => B[]
+export function foldRosePaths<A, B>(f: (a: A, b: B) => B): (init: B) => (tree: Tree<A>) => B[]
 /**
  * Folds the function f over all the paths of a rose tree
  * @param f The folding function
  * @param init The initial value (used if the rose tree has an empty forest)
  * @param tree The rose tree
  */
-export function foldRosePaths<A, B>(f: (a: A, b: B) => B, init: B): (tree: RoseTree<A>) => B[]
+export function foldRosePaths<A, B>(f: (a: A, b: B) => B, init: B): (tree: Tree<A>) => B[]
 /**
  * Folds the function f over all the paths of a rose tree
  * @param f The folding function
  * @param init The initial value (used if the rose tree has an empty forest)
  * @param tree The rose tree
  */
-export function foldRosePaths<A, B>(f: (a: A, b: B) => B, init: B, tree: RoseTree<A>): B[]
-export function foldRosePaths<A, B>(f: (a: A, b: B) => B, init?: B, tree?: RoseTree<A>): any {
+export function foldRosePaths<A, B>(f: (a: A, b: B) => B, init: B, tree: Tree<A>): B[]
+export function foldRosePaths<A, B>(f: (a: A, b: B) => B, init?: B, tree?: Tree<A>): any {
   /*
   https://stackoverflow.com/a/24032528
   Haskell code
   foldRose f z (Node x []) = [f x z]
   foldRose f z (Node x ns) = [f x y | n <- ns, y <- foldRose f z n]
   */
-  const fun = (init: B) => (tree: RoseTree<A>): B[] => {
-    const x = tree.rootLabel
-    const ns = tree.subForest
+  const fun = (init: B) => (tree: Tree<A>): B[] => {
+    const x = tree.value
+    const ns = tree.forest
     if (ns.length === 0) {
       // foldRose f z (Node x []) = [f x z]
       return [f(x, init)]
@@ -200,7 +193,7 @@ export function foldRosePaths<A, B>(f: (a: A, b: B) => B, init?: B, tree?: RoseT
           = concat $ map ff ns
       */
       // fp-ts calls `concat` `flatten` for arrays
-      const ff = (n: RoseTree<A>) => foldRosePaths(f, init, n).map(y => f(x, y))
+      const ff = (n: Tree<A>) => foldRosePaths(f, init, n).map(y => f(x, y))
       return flatten(ns.map(ff))
     }
 

@@ -1,9 +1,10 @@
 import { NonEmptyArray } from '../types/UtilityTypes'
 import { Either, left, right, Left, Right } from 'fp-ts/lib/Either'
 import { flatten } from 'fp-ts/lib/Array'
-import { partition, RoseTree, foldRosePaths, unzipEithers, maxHeight } from '../util'
+import { partition, foldRosePaths, unzipEithers, maxHeight } from '../util'
 import { compose, pipe } from 'fp-ts/lib/function'
 import { WhereTree, parseTree } from './WhereTree'
+import { Tree } from 'fp-ts/lib/Tree'
 
 export type FilterScope =
   | 'Delegated'
@@ -22,21 +23,19 @@ export type FilterScope =
 */
 
 // Parent query is a RoseTree<string>
-export interface ParentQuery extends RoseTree<string> {
-  kind: 'parent'
-}
+export type ParentQueryValue = { kind: 'object' | 'field', value: string }
+export type ParentQuery = Tree<ParentQueryValue>
 
 // because we accept strings as subForests, and transform them into ParentQuery objects without children internally,
 // there is no need to accept empty arrays for children
-export const parentQuery = (field: string, children: NonEmptyArray<ParentQuery | string>): ParentQuery => ({
-  kind: 'parent'
-, rootLabel: field
-, subForest: children.map(c =>
-    typeof c === 'string'
-      ? parentQuery(c, [] as any) // fudge a little since we do want an empty array here
-      : c
+export const parentQuery = (field: string, children: NonEmptyArray<ParentQuery | string>): ParentQuery =>
+  new Tree({ kind: 'object' as 'object', value: field }
+    , children.map(c =>
+      typeof c === 'string'
+        ? new Tree({ kind: 'field' as 'field', value: c }, [])
+        : c
+    )
   )
-})
 
 export interface SOQLQueryFilters {
   limit?: number
@@ -86,7 +85,8 @@ export const soqlQuery = (object: string,
 const flattenParentQuery = compose(
   // we will have extra periods at the end of every path. strip those
   (xs: string[]) => xs.map(x => x.substr(0, x.length - 1)),
-  foldRosePaths((a: string, b) => `${a}.${b}`, '')
+  foldRosePaths((a: string, b) => `${a}.${b}`, ''),
+  (t: ParentQuery) => t.map(v => v.value)
 )
 
 /**
@@ -105,8 +105,8 @@ export const soql = (query: SOQLQuery | ChildQuery): Either<string, string> => {
   }
 
   const partitioned = partition(query.selections, {
-    children: (q): q is ChildQuery => typeof q !== 'string' && q.kind === 'child'
-  , parents: (q): q is ParentQuery => typeof q !== 'string' && q.kind === 'parent'
+    children: (q): q is ChildQuery => typeof q !== 'string' && (q as any).kind === 'child'
+  , parents: (q): q is ParentQuery => typeof q !== 'string' && q instanceof Tree
   , fields: (q): q is string => typeof q === 'string'
   })
 

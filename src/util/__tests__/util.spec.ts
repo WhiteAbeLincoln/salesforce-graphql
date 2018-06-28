@@ -1,5 +1,6 @@
 import { joinNames, mergeObjs, mapObj, filterObj } from '../../util'
-import { Node, maxHeight, partition } from '../util'
+import { maxHeight, partition } from '../util'
+import { Tree } from 'fp-ts/lib/Tree'
 
 // tslint:disable:no-expression-statement
 
@@ -104,16 +105,16 @@ describe('partition', () => {
 describe('maxHeight', () => {
   it('gets the maximum height of a rose tree', () => {
     const tree
-      = Node(1,
-        [ Node(2,
-          [ Node(3, []) ]
+      = new Tree(1,
+        [ new Tree(2,
+          [ new Tree(3, []) ]
           )
-        , Node(2, [])
-        , Node(2,
-          [ Node(3, [])
-          , Node(3, [])
-          , Node(3,
-            [ Node(4, []) ]
+        , new Tree(2, [])
+        , new Tree(2,
+          [ new Tree(3, [])
+          , new Tree(3, [])
+          , new Tree(3,
+            [ new Tree(4, []) ]
             )
           ])
         ])
