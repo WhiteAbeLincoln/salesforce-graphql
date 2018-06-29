@@ -1,6 +1,6 @@
 import { FieldSet, ConcreteFieldSet, AbstractFieldSet,
-  AbstractFieldSetCondition, ConcreteFieldSetCondition, FieldSetCondition } from './GraphQLUtils'
-import { FieldConfig, ObjectConfig } from '../types'
+  AbstractFieldSetCondition, ConcreteFieldSetCondition, FieldSetCondition } from '../GraphQLUtils'
+import { FieldConfig, ObjectConfig } from '../../types'
 import { GraphQLCompositeType, getNamedType, isAbstractType } from 'graphql'
 
 export interface AnnotatedConcreteFieldSet extends ConcreteFieldSet {

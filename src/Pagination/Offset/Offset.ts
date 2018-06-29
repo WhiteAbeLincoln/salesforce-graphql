@@ -1,15 +1,15 @@
-import { BuildObjectsMiddleware, isChildField } from '../types'
+import { BuildObjectsMiddleware, isChildField } from '../../types'
 import { GraphQLEnumType, GraphQLInputObjectType,
          GraphQLNonNull, GraphQLList, GraphQLInputFieldConfig,
          GraphQLArgumentConfig } from 'graphql'
 import mem from 'mem'
-import { joinNames } from '../util'
-import { GraphQLUnsignedInt } from '../util/GraphQLScalars'
-import { getArgFields } from '../util/arguments'
-import { WhereArguments, createWhereArgs } from '../util/GraphQLWhere/WhereArgs'
+import { joinNames } from '../../util'
+import { GraphQLUnsignedInt } from '../../util/GraphQLScalars'
+import { getArgFields } from '../../util/arguments'
+import { WhereArguments, createWhereArgs } from '../../util/GraphQLWhere/WhereArgs'
 import { FieldType } from 'jsforce'
 import { createHash } from 'crypto'
-import { SOQLQueryFilters } from '../SOQL/SOQL'
+import { SOQLQueryFilters } from '../../SOQL/SOQL'
 
 export interface ListArguments extends WhereArguments {
   // Does it really make sense to include null ordering? I don't think GraphQL returns nulls

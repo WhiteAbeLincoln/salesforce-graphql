@@ -4,6 +4,7 @@ import { cons, flatten, lefts, rights } from 'fp-ts/lib/Array'
 import { Either, left, right } from 'fp-ts/lib/Either'
 import { RefinementType1 } from '../types'
 import { Tree } from 'fp-ts/lib/Tree'
+import { ParentQuery, ParentQueryValue } from '../SOQL/SOQL'
 
 export const joinNames = (n: string[], append = ''): string => {
   return n.reduceRight((p, c) =>
@@ -220,4 +221,13 @@ export function truncateToDepth<T>(depth: number, tree?: Tree<T>): Tree<T> | (<T
     case 1: return fun
     default: return fun(tree!)
   }
+}
+
+export const removeLeafObjects = (tree: ParentQuery): ParentQuery => {
+  // I want to remove subtrees that are leafs and have value with kind='object'
+  const forest = tree.forest.filter(f =>
+    !(f.value.kind === 'object' && f.forest.length === 0)
+    ).map(removeLeafObjects)
+
+  return new Tree<ParentQueryValue>(tree.value, forest)
 }
