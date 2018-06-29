@@ -1,10 +1,11 @@
-import { GraphQLFieldResolver, GraphQLResolveInfo, GraphQLList } from 'graphql'
+import { GraphQLResolveInfo, GraphQLList } from 'graphql'
 import { getFieldSet } from '../../util'
 import { annotateFieldSet, AnnotatedFieldSet } from '../../util/resolve/annotate'
 import { getQueryInfo, parseChildren, executeAndConvert,
   QueryInfo, parseFieldsAndParents, GetExecutionInfo } from '../../util/resolve/execute'
 import { Either, right } from 'fp-ts/lib/Either'
-import { SalesforceObjectConfig, isChildField, isParentField, isLeafField, NonEmptyArray } from '../../types'
+import { isChildField, isParentField, isLeafField,
+  NonEmptyArray, ResolverMiddleware } from '../../types'
 import { getWhereClause } from '../../util/GraphQLWhere/Parse'
 import { singleton, Node } from '../../util/BinaryTree'
 import { BooleanExpression, BooleanOp } from '../../SOQL/WhereTree'
@@ -110,9 +111,8 @@ const rootResolver = (
 }
 
 export const resolver
-  = (rootQuery: SalesforceObjectConfig,
-     objectMap: { [x: string]: SalesforceObjectConfig },
-     authFun: GetExecutionInfo): GraphQLFieldResolver<any, any> =>
+  = (authFun: GetExecutionInfo): ResolverMiddleware =>
+    (rootQuery, objectMap) =>
     (source, _args, context, info) => {
       const parentObj = info.parentType
       const fieldSet = getFieldSet(info)

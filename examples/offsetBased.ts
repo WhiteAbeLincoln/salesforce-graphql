@@ -1,14 +1,10 @@
 import { describeSalesforceObjects, writeDescribeFiles, importDescribeFiles } from '../src/describe'
 import { ConnectionOptions } from 'jsforce'
-import { makeObjects, buildGraphQLObjects } from '../src/buildSchema'
-import { middleware as offsetMiddleware } from '../src/Pagination/Offset'
+import { buildSchema } from '../src/Pagination/Offset/Build'
 import { resolver } from '../src/Pagination/Offset/Resolve'
-import { GraphQLSchema, GraphQLFieldConfig } from 'graphql'
-import { mergeObjs } from '../src/util'
+import { GraphQLSchema } from 'graphql'
 import graphqlHTTP from 'express-graphql'
 import express from 'express'
-import { salesforceObjectConfig, childField, BuildObjectsMiddleware } from '../src/types'
-import { Endomorphism } from 'fp-ts/lib/function'
 import { GetExecutionInfo } from '../src/util/resolve/execute'
 
 if (process.env.SF_USER
@@ -32,55 +28,31 @@ if (process.env.SF_USER
       }
     }
 
-    const rootFields = fetchDescribes(false).then(descs => {
-      const objects = makeObjects(descs)
-
-      const rootQuery = salesforceObjectConfig(
-        'SalesforceQuery'
-      , 'Query Salesforce'
-      , mergeObjs(...objects.map(c => ({ [c.name]: childField(c.name, c.description) })))
-      )
-
-      const objectMap = mergeObjs(...[...objects, rootQuery].map(o => ({ [o.name]: o })))
-
-      const login: GetExecutionInfo = context => {
-        // tslint:disable:no-expression-statement no-object-mutation
-        if (!context.sf_user) {
-          context.sf_user = process.env.SF_USER!
-        }
-
-        if (!context.sf_pass) {
-          context.sf_pass = process.env.SF_PASS!
-        }
-
-        if (!context.sf_options) {
-          context.sf_options = options
-        }
-
-        return { username: context.sf_user, password: context.sf_pass, options: context.sf_options }
-        // tslint:enable:no-expression-statement no-object-mutation
+    const login: GetExecutionInfo = context => {
+      // tslint:disable:no-expression-statement no-object-mutation
+      if (!context.sf_user) {
+        context.sf_user = process.env.SF_USER!
       }
 
-      const resolverMiddleware: Endomorphism<GraphQLFieldConfig<any, any>> = config => ({
-        ...config
-      , resolve: resolver(rootQuery, objectMap, login)
-      })
+      if (!context.sf_pass) {
+        context.sf_pass = process.env.SF_PASS!
+      }
 
-      const middleware: BuildObjectsMiddleware = (field, fields, parent, objectMap) =>
-        resolverMiddleware(offsetMiddleware(field, fields, parent, objectMap))
+      if (!context.sf_options) {
+        context.sf_options = options
+      }
 
-      const gqlObjects = buildGraphQLObjects([...objects, rootQuery], middleware)
+      return { username: context.sf_user, password: context.sf_pass, options: context.sf_options }
+      // tslint:enable:no-expression-statement no-object-mutation
+    }
 
-      const queryObject = gqlObjects[1].SalesforceQuery
-
-      return queryObject
-    })
+    const rootQuery = fetchDescribes(false).then(buildSchema(resolver(login)))
 
     const app = express()
 
     // tslint:disable-next-line:no-expression-statement
     app.use('/graphql', graphqlHTTP(
-      rootFields.then(query => {
+      rootQuery.then(query => {
         const schema = new GraphQLSchema({
           query
         })
