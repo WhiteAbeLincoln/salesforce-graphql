@@ -1,5 +1,4 @@
-import { GraphQLOutputType, GraphQLNonNull, GraphQLLeafType } from 'graphql'
-import { Endomorphism } from 'fp-ts/lib/function'
+import { GraphQLNonNull, GraphQLLeafType } from 'graphql'
 import { FieldType } from 'jsforce'
 
 // tslint:disable-next-line:variable-name
@@ -53,26 +52,8 @@ export const leafField = (type: GraphQLLeafType | GraphQLNonNull<GraphQLLeafType
   }
 )
 
-export type ReferenceField = {
-  [FieldKind]: 'reference'
-  type: GraphQLOutputType | string
-  description?: string
-  /** An optional function to wrap the referenced field */
-  wrapper?: Endomorphism<GraphQLOutputType>
-}
-
-export const referenceField = (type: GraphQLOutputType | string,
-                               description?: string,
-                               wrapper?: Endomorphism<GraphQLOutputType>): ReferenceField => (
-  { [FieldKind]: 'reference'
-  , type
-  , description
-  , wrapper
-  }
-)
-
 export type SalesforceFieldConfig = ParentField | ChildField | LeafField
-export type FieldConfig = SalesforceFieldConfig | ReferenceField
+export type FieldConfig = SalesforceFieldConfig
 
 export interface SalesforceObjectConfig {
   [ObjectKind]: 'salesforce'
@@ -93,29 +74,9 @@ export const salesforceObjectConfig = (name: string,
   }
 )
 
-export interface IntermediateObjectConfig {
-  [ObjectKind]: 'intermediate'
-  name: string
-  description: string
-  fields: {
-    [name: string]: ReferenceField
-  }
-}
-
-export const intermediateObjectConfig = (name: string,
-                                         description: string,
-                                         fields: IntermediateObjectConfig['fields']): IntermediateObjectConfig => (
-  { [ObjectKind]: 'intermediate'
-  , name
-  , description
-  , fields
-  }
-)
-
-export type ObjectConfig = SalesforceObjectConfig | IntermediateObjectConfig
+export type ObjectConfig = SalesforceObjectConfig
 
 export const isChildField = (field: FieldConfig): field is ChildField => field[FieldKind] === 'child'
 export const isParentField = (field: FieldConfig): field is ParentField => field[FieldKind] === 'parent'
 export const isLeafField = (field: FieldConfig): field is LeafField => field[FieldKind] === 'leaf'
-export const isReferenceField = (field: FieldConfig): field is ReferenceField => field[FieldKind] === 'reference'
 export const isSalesforceObject = (obj: ObjectConfig): obj is SalesforceObjectConfig => obj[ObjectKind] === 'salesforce'

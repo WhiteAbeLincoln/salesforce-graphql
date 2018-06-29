@@ -7,8 +7,7 @@ import mem from 'mem'
 import { SalesforceFieldConfig, BuildObjectsMiddleware,
   salesforceObjectConfig, parentField,
   leafField, childField, ObjectConfig,
-  isChildField, isParentField, isLeafField,
-  isReferenceField } from './types'
+  isChildField, isParentField, isLeafField } from './types'
 import { joinNames, mapObj, mergeObjs } from './util'
 import { GraphQLSFID, GraphQLURL, GraphQLEmailAddress } from './util/GraphQLScalars'
 import { GraphQLDateTime, GraphQLDate, GraphQLTime } from 'graphql-iso-date'
@@ -166,21 +165,6 @@ const genFields = (obj: Readonly<ObjectConfig>,
 
   return mapObj<input, GraphQLFieldConfig<any, any>>(field => {
     if (isLeafField(field)) return middleware(field, fields, obj, gqlObjects)
-
-    if (isReferenceField(field)) {
-      const fieldtype = field.type
-      const wrapper: NonNullable<typeof field.wrapper> = field.wrapper || (x => x)
-
-      const type = typeof fieldtype === 'string'
-        ? wrapper(gqlObjects[fieldtype])
-        : wrapper(fieldtype)
-
-      return middleware(
-        { ...field
-        , type
-        }, fields, obj, gqlObjects
-      )
-    }
 
     if (isChildField(field)) {
         const type = gqlObjects[field.referenceTo]
