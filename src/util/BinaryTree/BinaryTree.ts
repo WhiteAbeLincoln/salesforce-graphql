@@ -57,7 +57,6 @@ export class Leaf<A> implements BiTreeBase<A> {
   }
 
   toString(): string {
-    // tslint:disable-next-line:max-line-length
     return 'empty'
   }
 
@@ -129,7 +128,6 @@ export class Node<A> implements BiTreeBase<A> {
   }
 
   toString(): string {
-    // tslint:disable-next-line:max-line-length
     return `new Node(${this.value}, ${this.left && this.left.toString()}, ${this.right && this.right.toString()})`
   }
 

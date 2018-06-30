@@ -1,8 +1,8 @@
 import { GraphQLResolveInfo, GraphQLList } from 'graphql'
 import { getFieldSet } from '../../util'
 import { annotateFieldSet, AnnotatedFieldSet } from '../../util/resolve/annotate'
-import { getQueryInfo, parseChildren, executeAndConvert,
-  QueryInfo, parseFieldsAndParents, GetExecutionInfo } from '../../util/resolve/execute'
+import { getQueryInfo, parseChildren,
+  QueryInfo, parseFieldsAndParents } from '../../util/resolve/execute'
 import { Either, right } from 'fp-ts/lib/Either'
 import { isChildField, isParentField, isLeafField,
   NonEmptyArray, ResolverMiddleware } from '../../types'
@@ -12,7 +12,7 @@ import { BooleanExpression, BooleanOp } from '../../SOQL/WhereTree'
 import { soqlQuery, soql, SOQLQuery } from '../../SOQL/SOQL'
 
 const fieldResolver
-  = (source: any, annotatedFields: AnnotatedFieldSet, _info: GraphQLResolveInfo): Either<string, Promise<any>> => {
+  = (source: any, annotatedFields: AnnotatedFieldSet): Either<string, Promise<any>> => {
     // salesforce returns ISO8601 compatible date. GraphQLISODate expects ISO3339
     // meaning a date such as 2018-06-13T18:24:53.000+0000 won't parse because
     // the offset should be colon separated
@@ -29,9 +29,8 @@ const fieldResolver
 const childResolver = (
     source: any,
     context: any,
-    _info: GraphQLResolveInfo,
     annotatedFields: AnnotatedFieldSet,
-    authFun: GetExecutionInfo
+    queryFun: (context: any) => (query: string) => Promise<any[] | null>
 ) => {
   // this is an example of case Root-Child1-Child2
   /* Solution:
@@ -40,7 +39,11 @@ const childResolver = (
     3. If we receive a non-null result, return the Child2 field from the Child1 result object
   */
   const parentId = source.Id
-  const parentObj = source.attributes.type
+  // I don't want ot rely on our resolver always returning this attributes object
+  // jsforce does, (and I think salesforce always does, but we are allowing arbitrary resolvers)
+  // const parentObj = source.attributes.type
+  // TODO: figure out if this is always correct
+  const parentObj = annotatedFields.parentObj!.name
   const parentArgs = annotatedFields.args
 
   const queryInfo = getQueryInfo(annotatedFields)
@@ -66,7 +69,7 @@ const childResolver = (
       )
     )
     .chain(soql)
-    .map(executeAndConvert(authFun(context)))
+    .map(queryFun(context))
     .map(ps => ps.then(v => {
       if (!v || v.length === 0) return null
 
@@ -80,7 +83,7 @@ const rootResolver = (
   context: any,
   info: GraphQLResolveInfo,
   annotatedFields: AnnotatedFieldSet,
-  authFun: GetExecutionInfo
+  queryFun: (context: any) => (query: string) => Promise<any[] | null>
 ) => {
   const parseQueryInfo = (qInfo: QueryInfo) => {
     const { object, fields, parents, args } = parseFieldsAndParents(qInfo)
@@ -100,7 +103,7 @@ const rootResolver = (
 
   return parseQueryInfo(getQueryInfo(annotatedFields))
     .chain(soql)
-    .map(executeAndConvert(authFun(context)))
+    .map(queryFun(context))
     .map(ps => ps.then(v => {
       if (info.returnType instanceof GraphQLList) {
         return v
@@ -111,7 +114,7 @@ const rootResolver = (
 }
 
 export const resolver
-  = (authFun: GetExecutionInfo): ResolverMiddleware =>
+  = (queryFun: (context: any) => (query: string) => Promise<any[] | null>): ResolverMiddleware =>
     (rootQuery, objectMap) =>
     (source, _args, context, info) => {
       const parentObj = info.parentType
@@ -120,22 +123,22 @@ export const resolver
 
       const promise = ((): Either<string, Promise<any>> => {
         if (parentObj.name === rootQuery.name) {
-          return rootResolver(source, context, info, annotatedFields, authFun)
+          return rootResolver(source, context, info, annotatedFields, queryFun)
         }
 
         if (typeof source[info.path.key] === 'undefined') { // we haven't fully resolved our current path
           // and we are trying to resolve child field
           if (annotatedFields.configField && isChildField(annotatedFields.configField)) {
-            return childResolver(source, context, info, annotatedFields, authFun)
+            return childResolver(source, context, annotatedFields, queryFun)
           }
 
           // and we are trying to resolve parent field
           if (annotatedFields.configField && isParentField(annotatedFields.configField)) {
-            return rootResolver(source, context, info, annotatedFields, authFun)
+            return rootResolver(source, context, info, annotatedFields, queryFun)
           }
         }
 
-        return fieldResolver(source, annotatedFields, info)
+        return fieldResolver(source, annotatedFields)
       })()
 
       if (promise.isLeft()) {

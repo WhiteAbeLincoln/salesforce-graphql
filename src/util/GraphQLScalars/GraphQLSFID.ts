@@ -1,6 +1,6 @@
 import { GraphQLScalarType, ValueNode, GraphQLError } from 'graphql'
 import { isStringValueNode } from '../util'
-import { toString } from 'fp-ts/lib/function';
+import { toString } from 'fp-ts/lib/function'
 
 const SFID_REGEX = new RegExp(/^[a-zA-Z0-9]{15}|[a-zA-Z0-9]{18}$/)
 

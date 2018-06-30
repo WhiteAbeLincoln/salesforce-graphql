@@ -1,11 +1,13 @@
 import { describeSalesforceObjects, writeDescribeFiles, importDescribeFiles } from '../src/describe'
 import { ConnectionOptions } from 'jsforce'
-import { buildSchema } from '../src/Pagination/Offset/Build'
+import { buildQuery } from '../src/Pagination/Offset/Build'
 import { resolver } from '../src/Pagination/Offset/Resolve'
-import { GraphQLSchema } from 'graphql'
+import { GraphQLSchema, GraphQLObjectType, GraphQLString,
+  GraphQLFieldConfigMap, GraphQLList, GraphQLNonNull } from 'graphql'
 import graphqlHTTP from 'express-graphql'
 import express from 'express'
-import { GetExecutionInfo } from '../src/util/resolve/execute'
+import { GetExecutionInfo, executeAndConvert } from '../src/util/resolve/execute'
+import { compose } from 'fp-ts/lib/function'
 
 if (process.env.SF_USER
   && process.env.SF_PASS
@@ -28,6 +30,37 @@ if (process.env.SF_USER
       }
     }
 
+    // tslint:disable-next-line:variable-name
+    const AuthUser = new GraphQLObjectType({
+      name: 'AuthUser'
+    , fields: {
+        name: {
+          type: GraphQLString
+        }
+      }
+    })
+
+    const authUsers = [
+      { name: 'bob' }
+    , { name: 'john' }
+    , { name: 'joe' }
+    , { name: 'parsley' }
+    ]
+
+    const rootFields: GraphQLFieldConfigMap<any, any> = {
+      authUsers: {
+        type: new GraphQLList(AuthUser)
+      , resolve: () => authUsers
+      }
+    , authUser: {
+        type: AuthUser
+      , args: {
+          name: { type: new GraphQLNonNull(GraphQLString) }
+        }
+      , resolve: (_, args) => authUsers.find(v => v.name === args.name)
+      }
+    }
+
     const login: GetExecutionInfo = context => {
       // tslint:disable:no-expression-statement no-object-mutation
       if (!context.sf_user) {
@@ -46,7 +79,9 @@ if (process.env.SF_USER
       // tslint:enable:no-expression-statement no-object-mutation
     }
 
-    const rootQuery = fetchDescribes(false).then(buildSchema(resolver(login)))
+    const jsforceQuery = compose(executeAndConvert, login)
+
+    const rootQuery = fetchDescribes(false).then(buildQuery(resolver(jsforceQuery), rootFields))
 
     const app = express()
 

@@ -94,9 +94,11 @@ export const createListArgs = (leafFields: Array<[string, FieldType]>) => {
   return config
 }
 
-export const middleware: BuildObjectsMiddleware = (field, fields, _) => {
+export const middleware: BuildObjectsMiddleware = (field, fields) => {
+  // don't touch anything but our child fields - we don't want to run this
+  // on regular GraphQLFieldConfigs
   if (isChildField(field)) {
-    const leafFields = getArgFields(fields as any)
+    const leafFields = getArgFields(fields)
     const args = createListArgs(leafFields)
     const type = new GraphQLList(field.type)
     return { ...field, type, args }

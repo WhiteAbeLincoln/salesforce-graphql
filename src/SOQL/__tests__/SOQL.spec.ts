@@ -2,7 +2,7 @@ import { SOQLQuery, soql, parentQuery, childQuery, soqlQuery } from '../SOQL'
 import { singleton } from '../../util/BinaryTree'
 import { BooleanExpression } from '../WhereTree'
 
-// tslint:disable:no-expression-statement typedef
+// tslint:disable:no-expression-statement
 
 describe('soql', () => {
   it('gives the correct result for a query with fields', () => {

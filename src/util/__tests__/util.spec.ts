@@ -1,6 +1,6 @@
 import { joinNames, mergeObjs, mapObj, filterObj } from '../../util'
 import { maxHeight, partition, truncateToDepth } from '../util'
-import { Tree, tree } from 'fp-ts/lib/Tree'
+import { Tree } from 'fp-ts/lib/Tree'
 
 // tslint:disable:no-expression-statement
 

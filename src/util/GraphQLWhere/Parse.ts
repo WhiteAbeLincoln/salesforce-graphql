@@ -29,11 +29,8 @@ const binaryFromForest = ({ AND, OR, NOT }: NonNullable<FilterNode['node']>): Ei
 
   const eitherTrees = forest.map(convertToProperTree)
 
-  /*
-    A NOT node will have a left subtree of a boolean expression and a right subtree of leaf
-  */
-  // tslint:disable-next-line:no-expression-statement
-  if (op === 'NOT') eitherTrees.push(right(empty as WhereTree))
+  //  A NOT node will have a left subtree of a boolean expression and a right subtree of leaf
+  if (op === 'NOT') return mergeTrees(op, ...eitherTrees, right<string, WhereTree>(empty))
 
   return mergeTrees(op, ...eitherTrees)
 }

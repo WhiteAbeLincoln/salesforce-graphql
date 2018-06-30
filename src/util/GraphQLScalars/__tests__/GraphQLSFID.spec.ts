@@ -1,6 +1,6 @@
 import { GraphQLSchema, GraphQLObjectType, GraphQLFieldResolver, graphql, Kind } from 'graphql'
 import { GraphQLSFID, isSFID } from '../../../util/GraphQLScalars/GraphQLSFID'
-import { toString } from 'fp-ts/lib/function';
+import { toString } from 'fp-ts/lib/function'
 
 // tslint:disable:no-expression-statement
 

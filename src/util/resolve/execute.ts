@@ -5,15 +5,15 @@ import { isLeafField, isParentField, isChildField, NonEmptyArray } from '../../t
 import { parentQuery, ParentQuery, childQuery } from '../../SOQL/SOQL'
 import { getWhereClause } from '../GraphQLWhere/Parse'
 
-export interface ExecutionInfo {
+export interface AuthenticationInfo {
   username: string
   password: string
   options: ConnectionOptions
 }
 
-export type GetExecutionInfo = (context: any) => ExecutionInfo
+export type GetExecutionInfo = (context: any) => AuthenticationInfo
 
-export const executeQuery = (info: ExecutionInfo) => (query: string) => {
+export const executeQuery = (info: AuthenticationInfo) => (query: string) => {
   const { username, password, options } = info
   const conn = new Connection(options)
   return conn.login(username, password).then(() => {
@@ -39,7 +39,7 @@ export const executeQuery = (info: ExecutionInfo) => (query: string) => {
   })
 }
 
-export const executeAndConvert = (info: ExecutionInfo) => (query: string) => {
+export const executeAndConvert = (info: AuthenticationInfo) => (query: string) => {
   return executeQuery(info)(query).then(convertQueryResult)
 }
 
@@ -92,7 +92,7 @@ export const parseFieldsAndParents
   = (qInfo: QueryInfo): { object: string, fields: string[], parents: ParentQuery[], args: any } => {
     const object = qInfo.field.fieldName
     // always include the Id field so we have some reference for filtering with sub-resolvers
-    const fields = [...new Set([...qInfo.leafs.map(l => l.fieldName), 'Id'])]
+    const fields = [...new Set(['Id', ...qInfo.leafs.map(l => l.fieldName)])]
     // we truncate the parent queries to what we know is a valid request
     // the sub-resolvers will handle making new requests to get the other data
     const parents = qInfo.parents.map(p => {

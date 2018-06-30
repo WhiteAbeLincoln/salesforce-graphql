@@ -2,9 +2,9 @@
 ## Root-Parent-Parent
 ### Query
 ```graphql
-Contact {
-  Account {
-    Parent {
+Jedi {
+  Master {
+    Master {
       Id
     }
   }
@@ -12,17 +12,21 @@ Contact {
 ```
 ### Expected
 ```sql
-  SELECT Account.Parent.Id FROM Contact
+  SELECT Master.Master.Id FROM Jedi
 ```
 ### Actual
 *Works*
 
+```json
+  { "Jedi": [{ "Master": { "Master": { "Id": 1 } } }] }
+```
+
 ## Root-Parent-Child
 ### Query
 ```graphql
-Contact {
-  Account {
-    Contacts {
+Jedi {
+  Master {
+    Padawans {
       Id
     }
   }
@@ -30,24 +34,30 @@ Contact {
 ```
 ### Expected
 ```sql
-SELECT (SELECT Id FROM Account.Contacts) FROM Contact
+SELECT (SELECT Id FROM Master.Padawans) FROM Jedi
 ```
 ### Actual
 *Does Not Work*
 #### Solution
 ```sql
-  SELECT Account.Id FROM Contact
+  SELECT Master.Id FROM Jedi
 ```
-For every `Account.Id` do
+```json
+{ "Jedi": [{ "Master": { "Id": 10 } }] }
+```
+For every returned `jedi` do
 ```sql
-  SELECT (SELECT Id FROM Contacts) FROM Account WHERE Id = '${Account.Id}' 
+  SELECT (SELECT Id FROM Padawans) FROM Masters WHERE Master.Id = '${jedi.Master.Id}' 
+```
+```json
+{ "Jedi": [{ "Padawans": [{ "Id": 12, "MasterId": 10 }] }]}
 ```
 ## Root-Child-Child
 ### Query
 ```graphql
-Account {
-  Contacts {
-    Events {
+Jedi {
+  Padawans {
+    Lightsabers {
       Id
     }
   }
@@ -55,24 +65,27 @@ Account {
 ```
 ### Expected
 ```sql
-SELECT (SELECT (SELECT Id FROM Events) FROM Contacts) FROM Account
+SELECT (SELECT (SELECT Id FROM Lightsabers) FROM Padawans) FROM Jedi
 ```
 ### Actual
 *Does Not Work*
 #### Solution
 ```sql
-SELECT (SELECT Id FROM Contacts) FROM Account
+SELECT (SELECT Id FROM Padawans) FROM Jedi
 ```
-for every `Id` as `CId` do
+```json
+{ "Jedi": [{ "Padawans": [{ "Id": 10 }] }] }
+```
+for every `padawan` do
 ```sql
-SELECT Id, (SELECT Id FROM Events) FROM Contact WHERE Contact.Id = '${CId}'
+SELECT (SELECT Id FROM Lightsabers) FROM Padawan WHERE Padawan.Id = '${padawan.Id}'
 ```
 ## Root-Child-Parent
 ### Query
 ```graphql
-Account {
-  Contacts {
-    Account {
+Jedi {
+  Padawans {
+    Master {
       Id
     }
   }
@@ -80,11 +93,10 @@ Account {
 ```
 ### Expected
   ```sql
-    SELECT (SELECT Account.Id FROM Contacts) FROM Account
+    SELECT (SELECT Master.Id FROM Padawans) FROM Jedi
   ```
 ### Actual
   *Works*  
-  Can reduce to:
-  ```sql
-    SELECT Id FROM Account -- repeat for number of contacts under account
+  ```json
+    { "Jedi": [{ "Padawans": { "Master": { "Id": 10 } } }] }
   ```

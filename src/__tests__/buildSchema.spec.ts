@@ -9,7 +9,7 @@ import { GraphQLBoolean, GraphQLString, GraphQLFloat,
 import { GraphQLDateTime, GraphQLDate, GraphQLTime } from 'graphql-iso-date'
 import { makeObjects, buildGraphQLObjects } from '../buildSchema'
 import { joinNames } from '../util'
-import { middleware as offsetMiddleware } from '../Pagination/Offset/Offset'
+import { middleware as offsetMiddleware } from '../Pagination/Offset/Middleware'
 // tslint:disable:no-expression-statement
 
 const objects: Array<[DescribeSObjectResult, SalesforceObjectConfig | undefined]>
