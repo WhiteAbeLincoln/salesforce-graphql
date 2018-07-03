@@ -84,5 +84,3 @@ export const isParentField = <T extends object>(field: T): field is ParentField 
   (field as any)[FIELD_KIND] === 'parent'
 export const isLeafField = <T extends object>(field: T): field is LeafField & T =>
   (field as any)[FIELD_KIND] === 'leaf'
-export const isSalesforceObject = (obj: ObjectConfig): obj is SalesforceObjectConfig =>
-  obj[OBJECT_KIND] === 'salesforce'

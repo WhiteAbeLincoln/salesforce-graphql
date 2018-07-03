@@ -75,6 +75,7 @@ const convertValue = (value: PossibleValues): string => {
     if (typeof value === 'number') return value.toString()
     if (typeof value === 'boolean') return value ? 'TRUE' : 'FALSE'
     if (value instanceof Date) return value.toISOString()
+    /* istanbul ignore else */
     if (value === null) return 'null'
     // this ensures that if we forget an if case then the assignment fails
     // (only never can be assigned to the bottom type)

@@ -3,8 +3,8 @@ import { Node, mergeTrees, singleton, empty, getSetoid,
 import { right, Either, left } from 'fp-ts/lib/Either'
 import { cons, array } from 'fp-ts/lib/Array'
 import { flip } from '../../functional'
-import { setoidNumber } from 'fp-ts/lib/Setoid'
-import { ordNumber } from 'fp-ts/lib/Ord'
+import { setoidNumber, setoidDate } from 'fp-ts/lib/Setoid'
+import { ordNumber, ordDate } from 'fp-ts/lib/Ord'
 import { traverse, sequence } from 'fp-ts/lib/Traversable'
 import { option, Option, some, none } from 'fp-ts/lib/Option'
 import { Tree } from 'fp-ts/lib/Tree'
@@ -221,7 +221,7 @@ describe('Typeclasses', () => {
       const add = (p: number, c: number) => p + c
 
       expect(
-        tree1.reduce(0, add)
+        bitree.reduce(tree1, 0, add)
       ).toEqual(
         toArray(tree1).reduce(add, 0)
       )
@@ -257,6 +257,53 @@ describe('Typeclasses', () => {
 
     // TODO: Write composition law
     it.skip('fulfills the Composition law')
+  })
+
+  describe('Alt', () => {
+    const a: BiTree<number> = empty
+    const b: BiTree<number> = singleton(5)
+    const c: BiTree<number> = singleton(10)
+
+    it('fulfills the Associativity law', () => {
+      // a.alt(b).alt(c) === a.alt(b.alt(c))
+      expect(
+        bitree.alt(bitree.alt(a, b), c)
+      ).toEqual(
+        bitree.alt(a, bitree.alt(b, c))
+      )
+    })
+
+    it('fulfills the Distributivity law', () => {
+      const f = (n: number) => n.toString()
+      // a.alt(b).map(f) === a.map(f).alt(b.map(f))
+      expect(
+        bitree.alt(a, b).map(f)
+      ).toEqual(
+        bitree.alt(a.map(f), b.map(f))
+      )
+    })
+  })
+
+  describe('Plus', () => {
+    const x = singleton(1)
+    it('fulfills the Right Identity law', () => {
+      // x.alt(A.zero()) === x
+      expect(x.alt(bitree.zero())).toEqual(x)
+    })
+
+    it('fulfills the Left Identity law', () => {
+      // A.zero().alt(x) === x
+      expect(bitree.zero().alt(x)).toEqual(x)
+    })
+
+    it('fulfills the Annihilation law', () => {
+      // A.zero().map(f) === A.zero()
+      expect(
+        bitree.zero<number>().map(x => x + 1)
+      ).toEqual(
+        bitree.zero<number>()
+      )
+    })
   })
 })
 
@@ -405,10 +452,7 @@ describe('truncateToDepth', () => {
             , singleton(4)
             , singleton(4)
             )
-          , new Node(3
-            , singleton(4)
-            , singleton(4)
-            )
+          , empty
           )
         , new Node(2
           , new Node(3
@@ -422,6 +466,83 @@ describe('truncateToDepth', () => {
           )
         )
 
+    const tree3
+      = new Node(1
+        , new Node(2
+          , singleton(3)
+          , empty
+          )
+        , new Node(2
+          , singleton(3)
+          , singleton(3)
+          )
+        )
+
     expect(truncateToDepth(3, tree4).height()).toBe(3)
+    expect(truncateToDepth(3, tree4)).toEqual(tree3)
+  })
+})
+
+describe('toString', () => {
+  it('leaf returns \'empty\' on toString() and inspect()', () => {
+    expect(empty.toString()).toBe('empty')
+    expect(empty.inspect()).toBe('empty')
+  })
+
+  it('node returns \'new Node(...)\' on toString() and inspect()', () => {
+    expect((new Node('A', empty, empty)).toString()).toBe('new Node(A, empty, empty)')
+    expect((new Node('A', empty, empty)).inspect()).toBe('new Node(A, empty, empty)')
+  })
+})
+
+describe('contains', () => {
+  it('returns false for leaf', () => {
+    const tree: BiTree<number> = empty
+    expect(tree.contains(setoidNumber, 5)).toBe(false)
+  })
+
+  it('returns true for node if the tree contains the value', () => {
+    const tree: BiTree<number> = new Node(4, singleton(5), singleton(6))
+    expect(tree.contains(setoidNumber, 5)).toBe(true)
+  })
+})
+
+describe('equals', () => {
+  it('checks equality using setoid', () => {
+    const S = setoidDate
+    const tree1 = new Node(new Date('2017-09-09'), singleton(new Date('2017-12-25')), singleton(new Date('1970-01-01')))
+    const tree2 = new Node(new Date('2017-09-09'), singleton(new Date('2017-12-25')), singleton(new Date('1970-01-01')))
+    expect(tree1.equals(tree2, S)).toBe(true)
+  })
+
+  it('checks primitive equality if no setoid is passed', () => {
+    const tree1 = singleton(1)
+    const tree2 = singleton(1)
+
+    expect(tree1.equals(tree2)).toBe(true)
+  })
+})
+
+describe('compare', () => {
+  it('orders using Ord instance', () => {
+    const O = ordDate
+    const tree1 = new Node(new Date('2016-09-09'), singleton(new Date('2017-12-25')), singleton(new Date('1970-01-01')))
+    const tree2 = new Node(new Date('2017-09-09'), singleton(new Date('2017-12-25')), singleton(new Date('1970-01-01')))
+
+    expect(tree1.compare(tree2, O)).toBe(-1)
+  })
+
+  it('orders using primitives if no Ord instance is passed', () => {
+    const tree1 = singleton(1)
+    const tree2 = singleton(2)
+
+    expect(tree1.compare(tree2)).toBe(-1)
+  })
+
+  it('always orders a Node greater than a Leaf', () => {
+    const tree1 = singleton(1)
+    const tree2: BiTree<number> = empty
+
+    expect(tree1.compare(tree2)).toBe(1)
   })
 })

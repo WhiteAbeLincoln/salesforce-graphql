@@ -1,7 +1,7 @@
 import Account from '../../../__tests__/describes/Account.desc.json'
 import { DescribeSObjectResult } from 'jsforce'
 import { ResolverMiddleware } from '../../../types'
-import { buildQuery } from '../Build'
+import { buildQuery } from '../../Offset'
 import { GraphQLObjectType, GraphQLFieldConfigMap, GraphQLString, GraphQLList, GraphQLFieldConfig } from 'graphql'
 import { Endomorphism } from 'fp-ts/lib/function'
 

@@ -98,6 +98,8 @@ const collectFragmentFields = (info: GraphQLResolveInfo,
             case Kind.FRAGMENT_SPREAD: {
               const fragName = selection.name.value
               const frag = fragmentSets[fragName]()
+              // the graphql collect function has a similar check though this should never happen
+              /* istanbul ignore if */
               if (!frag) return none
 
               return frag

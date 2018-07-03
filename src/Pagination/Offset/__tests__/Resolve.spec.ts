@@ -4,7 +4,7 @@ import { GraphQLString, GraphQLSchema, GraphQLFieldConfig, graphql } from 'graph
 import { buildGraphQLObjects } from '../../../buildSchema'
 import { middleware } from '../Middleware'
 import { Endomorphism } from 'fp-ts/lib/function'
-import { resolver } from '../Resolve'
+import { resolver } from '../../Offset'
 import { mergeObjs } from '../../../util'
 import { GraphQLDateTime } from 'graphql-iso-date'
 
@@ -38,7 +38,7 @@ const boilerplate = (objects: SalesforceObjectConfig[],
 // tslint:disable:no-expression-statement
 describe('resolver', () => {
   it('gives the correct SOQL for a simple Root query', () => {
-    expect.assertions(1)
+    expect.assertions(2)
 
     const kenobi = salesforceObjectConfig('GeneralKenobi', 'A Jedi', {
       says: leafField(GraphQLString, 'string', true, 'Hello There')
@@ -62,10 +62,15 @@ describe('resolver', () => {
     `
 
     return boilerplate([kenobi, rootQuery], rootQuery, test, gqlQuery)
+      .then(v => expect(v).toEqual({
+        GeneralKenobi: [{
+          says: 'Hello There'
+        }]
+      }))
   })
 
   it('gives the correct SOQL for a Root-Parent query', () => {
-    expect.assertions(1)
+    expect.assertions(2)
 
     const jedi = salesforceObjectConfig('Jedi', 'A Jedi', {
       says: leafField(GraphQLString, 'string', true, 'Hello There')
@@ -95,10 +100,17 @@ describe('resolver', () => {
     `
 
     return boilerplate([jedi, rootQuery], rootQuery, test, gqlQuery)
+      .then(v => expect(v).toEqual({
+        Jedi: [{
+          Master: {
+            name: 'Qui-gon Jinn'
+          }
+        }]
+      }))
   })
 
   it('gives the correct SOQL for a Root-Parent-Parent query', () => {
-    expect.assertions(1)
+    expect.assertions(2)
 
     const jedi = salesforceObjectConfig('Jedi', 'A Jedi', {
       says: leafField(GraphQLString, 'string', true, 'Hello There')
@@ -129,10 +141,19 @@ describe('resolver', () => {
     `
 
     return boilerplate([jedi, rootQuery], rootQuery, test, gqlQuery)
+      .then(v => expect(v).toEqual({
+        Jedi: [{
+          Master: {
+            Master: {
+              name: 'Qui-gon Jinn'
+            }
+          }
+        }]
+      }))
   })
 
   it('gives the correct SOQL for a Root-Parent-Child query', () => {
-    expect.assertions(2)
+    expect.assertions(3)
 
     const jedi = salesforceObjectConfig('Jedi', 'A Jedi', {
       says: leafField(GraphQLString, 'string', true, 'Hello There')
@@ -152,9 +173,9 @@ describe('resolver', () => {
     }
 
     const second = (query: string) => {
-      expect(query).toEqual('SELECT (SELECT Id, name FROM Padawans) FROM Jedi WHERE ( Id = 10 )')
+      expect(query).toEqual('SELECT (SELECT Id, name FROM Padawans) FROM Jedi WHERE ( Id = 10 ) LIMIT 1')
 
-      return Promise.resolve([{ Jedi: [{ name: 'Qui-gon Jinn', Id: 10 }] }])
+      return Promise.resolve([{ Padawans: [{ name: 'Anakin', Id: 20 }], Id: 10 }])
     }
 
     // tslint:disable-next-line:no-let prefer-const
@@ -181,12 +202,21 @@ describe('resolver', () => {
     `
 
     return boilerplate([jedi, rootQuery], rootQuery, test, gqlQuery)
+      .then(v => expect(v).toEqual({
+        Jedi: [{
+          Master: {
+            Padawans: [{
+              name: 'Anakin'
+            }]
+          }
+        }]
+      }))
   })
 
   it('gives the correct SOQL for a Root-Child-Child query', () => {
-    expect.assertions(2)
+    expect.assertions(3)
 
-    const lightsaber = salesforceObjectConfig('Lightsaber', 'A tool from a more elegant age', {
+    const lightsaber = salesforceObjectConfig('Lightsaber', 'An elegant weapon... for a more civilized age', {
       color: leafField(GraphQLString, 'string', true, 'Bluuuueee')
     })
 
@@ -209,9 +239,10 @@ describe('resolver', () => {
     }
 
     const second = (query: string) => {
-      expect(query).toEqual('SELECT (SELECT Id, color FROM Lightsabers) FROM Jedi WHERE ( Id = 10 )')
+      // tslint:disable-next-line:max-line-length
+      expect(query).toEqual('SELECT (SELECT Id, color FROM Lightsabers WHERE ( color = \'blue\' ) LIMIT 5 OFFSET 5) FROM Jedi WHERE ( Id = 10 ) LIMIT 1')
 
-      return Promise.resolve([{ Jedi: [{ Id: 10, Lightsabers: [{ color: 'blue', Id: 20 }] }] }])
+      return Promise.resolve([{ Id: 10, Lightsabers: [{ color: 'blue', Id: 20 }] }])
     }
 
     // tslint:disable-next-line:no-let prefer-const
@@ -229,7 +260,7 @@ describe('resolver', () => {
       query {
         Jedi {
           Padawans {
-            Lightsabers {
+            Lightsabers(filter:{leaf:{color:{eq:"blue"}}}, limit: 5, offset: 5) {
               color
             }
           }
@@ -238,10 +269,19 @@ describe('resolver', () => {
     `
 
     return boilerplate([jedi, lightsaber, rootQuery], rootQuery, test, gqlQuery)
+      .then(v => expect(v).toEqual({
+        Jedi: [{
+          Padawans: [{
+            Lightsabers: [{
+              color: 'blue'
+            }]
+          }]
+        }]
+      }))
   })
 
   it('gives the correct SOQL for a Root-Child-Parent query', () => {
-    expect.assertions(1)
+    expect.assertions(2)
 
     const jedi = salesforceObjectConfig('Jedi', 'A Jedi', {
       says: leafField(GraphQLString, 'string', true, 'Hello There')
@@ -273,6 +313,15 @@ describe('resolver', () => {
     `
 
     return boilerplate([jedi, rootQuery], rootQuery, test, gqlQuery)
+      .then(v => expect(v).toEqual({
+        Jedi: [{
+          Padawans: [{
+            Master: {
+              name: 'hi'
+            }
+          }]
+        }]
+      }))
   })
 
   it('handles that stupid date-time fix', () => {
@@ -308,5 +357,236 @@ describe('resolver', () => {
     return expect(boilerplate([jedi, rootQuery], rootQuery, test, gqlQuery)).resolves.toEqual(
       { Jedi: [ { born: new Date(dateString).toISOString() } ] }
     )
+  })
+
+  it('gives the correct SOQL for a query with where filter tree', () => {
+    expect.assertions(1)
+
+    const jedi = salesforceObjectConfig('Jedi', 'A Jedi', {
+      says: leafField(GraphQLString, 'string', true, 'Hello There')
+    , name: leafField(GraphQLString, 'string', true, 'This jedi\'s name')
+    , Master: parentField(['Jedi'], 'This jedi\'s Master')
+    , Padawans: childField('Jedi', 'This jedi\'s trainees')
+    })
+
+    const rootQuery = salesforceObjectConfig('Query', 'Query', {
+      [jedi.name]: childField(jedi.name, jedi.description),
+    })
+
+    const test = (query: string) => {
+      expect(query).toEqual('SELECT Id, name FROM Jedi WHERE ( name = \'5\' )')
+
+      return Promise.resolve([{ Id: 5, name: '5' }])
+    }
+
+    const gqlQuery = `
+      query {
+        Jedi(filter:{leaf:{name:{eq:"5"}}}) {
+          name
+        }
+      }
+    `
+
+    return boilerplate([jedi, rootQuery], rootQuery, test, gqlQuery)
+  })
+
+  it('gives the correct SOQL for a query with where filter string', () => {
+    expect.assertions(1)
+
+    const jedi = salesforceObjectConfig('Jedi', 'A Jedi', {
+      says: leafField(GraphQLString, 'string', true, 'Hello There')
+    , name: leafField(GraphQLString, 'string', true, 'This jedi\'s name')
+    , Master: parentField(['Jedi'], 'This jedi\'s Master')
+    , Padawans: childField('Jedi', 'This jedi\'s trainees')
+    })
+
+    const rootQuery = salesforceObjectConfig('Query', 'Query', {
+      [jedi.name]: childField(jedi.name, jedi.description),
+    })
+
+    const test = (query: string) => {
+      expect(query).toEqual('SELECT Id, name FROM Jedi WHERE name = \'5\'')
+
+      return Promise.resolve([{ Id: 5, name: '5' }])
+    }
+
+    const gqlQuery = `
+      query {
+        Jedi(filterString:"name = '5'") {
+          name
+        }
+      }
+    `
+
+    return boilerplate([jedi, rootQuery], rootQuery, test, gqlQuery)
+  })
+
+  it('gives the correct SOQL for a deeply nested parent query', () => {
+    // expect.assertions(1)
+
+    const jedi = salesforceObjectConfig('Jedi', 'A Jedi', {
+      says: leafField(GraphQLString, 'string', true, 'Hello There')
+    , name: leafField(GraphQLString, 'string', true, 'This jedi\'s name')
+    , Master: parentField(['Jedi'], 'This jedi\'s Master')
+    , Padawans: childField('Jedi', 'This jedi\'s trainees')
+    })
+
+    const rootQuery = salesforceObjectConfig('Query', 'Query', {
+      [jedi.name]: childField(jedi.name, jedi.description),
+    })
+
+    const tests: Array<(query: string) => Promise<any[]>>
+      = [ (query: string) => {
+            // tslint:disable-next-line:max-line-length
+            expect(query).toEqual('SELECT Id, Master.Id, Master.Master.Id, Master.Master.Master.Id, Master.Master.Master.Master.Id FROM Jedi')
+
+            return Promise.resolve([{
+              Id: 1
+            , Master: {
+                Id: 2
+              , Master: {
+                  Id: 3
+                , Master: {
+                    Id: 4
+                  , Master: {
+                      Id: 5
+                    }
+                  }
+                }
+              }
+            }])
+          }
+        , (query: string) => {
+            // tslint:disable-next-line:max-line-length
+            expect(query).toEqual('SELECT Id, Master.Id, Master.name, (SELECT Id, name FROM Padawans) FROM Jedi WHERE ( Id = 5 ) LIMIT 1')
+
+            return Promise.resolve([
+              { Id: 6, Master: { Id: 7, name: 'Super deep' }, Padawans: [{ Id: 12, name: 'Child' }] }
+            ])
+          }
+        ]
+
+    // tslint:disable-next-line:no-let prefer-const
+    let count = 0
+
+    const test = (query: string) => {
+      // expect(query).toEqual('SELECT Id, name FROM Jedi WHERE name = \'5\'')
+      const fun = tests[count]
+      if (!fun) throw new Error('Not enough tests')
+      const res = fun(query)
+      count++
+
+      return res
+    }
+
+    const gqlQuery = `
+      query {
+        Jedi {
+          Master {
+            Master {
+              Master {
+                Master {
+                  Master {
+                    Padawans {
+                      name
+                    }
+                    Master {
+                      name
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    `
+
+    return boilerplate([jedi, rootQuery], rootQuery, test, gqlQuery)
+      .then(v =>
+        expect(v).toEqual({
+          Jedi: [{
+            Master: {
+              Master: {
+                Master: {
+                  Master: {
+                    Master: {
+                      Padawans: [{
+                        name: 'Child'
+                      }]
+                    , Master: {
+                        name: 'Super deep'
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }]
+        })
+      )
+  })
+
+  it('gives the correct result for a Root-Child-Child query that doesn\'t return a value', () => {
+    expect.assertions(3)
+
+    const lightsaber = salesforceObjectConfig('Lightsaber', 'An elegant weapon... for a more civilized age', {
+      color: leafField(GraphQLString, 'string', true, 'Bluuuueee')
+    })
+
+    const jedi = salesforceObjectConfig('Jedi', 'A Jedi', {
+      says: leafField(GraphQLString, 'string', true, 'Hello There')
+    , name: leafField(GraphQLString, 'string', true, 'This jedi\'s name')
+    , Master: parentField(['Jedi'], 'This jedi\'s Master')
+    , Padawans: childField('Jedi', 'This jedi\'s trainees')
+    , Lightsabers: childField('Lightsaber', 'This jedi\'s lightsaber')
+    })
+
+    const rootQuery = salesforceObjectConfig('Query', 'Query', {
+      [jedi.name]: childField(jedi.name, jedi.description),
+    })
+
+    const first = (query: string) => {
+      expect(query).toEqual('SELECT Id, (SELECT Id FROM Padawans) FROM Jedi')
+
+      return Promise.resolve([{ Id: 5, Padawans: [{ Id: 10 }] }])
+    }
+
+    const second = (query: string) => {
+      // tslint:disable-next-line:max-line-length
+      expect(query).toEqual('SELECT (SELECT Id, color FROM Lightsabers) FROM Jedi WHERE ( Id = 10 ) LIMIT 1')
+
+      return Promise.resolve([{ Id: 10, Lightsabers: [] }])
+    }
+
+    // tslint:disable-next-line:no-let prefer-const
+    let count = 1
+
+    const test = (query: string) => {
+      if (count === 1) {
+        count++
+        return first(query)
+      }
+      return second(query)
+    }
+
+    const gqlQuery = `
+      query {
+        Jedi {
+          Padawans {
+            Lightsabers {
+              color
+            }
+          }
+        }
+      }
+    `
+
+    return boilerplate([jedi, lightsaber, rootQuery], rootQuery, test, gqlQuery)
+      .then(v =>
+        expect(v).toEqual({
+          Jedi: [{ Padawans: [{ Lightsabers: [] }] }]
+        })
+      )
   })
 })

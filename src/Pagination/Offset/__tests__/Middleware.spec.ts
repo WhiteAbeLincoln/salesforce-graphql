@@ -1,6 +1,6 @@
 import { childField, leafField, salesforceObjectConfig } from '../../../types'
 import { GraphQLString, GraphQLList } from 'graphql'
-import { middleware } from '../Middleware'
+import { middleware } from '../../Offset'
 import { buildGraphQLObjects } from '../../../buildSchema'
 import { GraphQLUnsignedInt } from '../../../util/GraphQLScalars'
 

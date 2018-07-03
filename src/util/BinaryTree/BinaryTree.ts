@@ -10,6 +10,8 @@ import { Traversable1 } from 'fp-ts/lib/Traversable'
 import { Applicative } from 'fp-ts/lib/Applicative'
 import { HKT } from 'fp-ts/lib/HKT'
 import { Tree, drawTree as drawRose } from 'fp-ts/lib/Tree'
+import { Alt1 } from 'fp-ts/lib/Alt'
+import { Plus1 } from 'fp-ts/lib/Plus'
 
 declare module 'fp-ts/lib/HKT' {
   interface URI2HKT<A> {
@@ -47,10 +49,6 @@ export class Leaf<A> implements BiTreeBase<A> {
   readonly _URI!: URI
 
   static value: BiTree<never> = new Leaf<never>()
-
-  get [Symbol.toStringTag](): string {
-    return this._tag
-  }
 
   inspect(): string {
     return this.toString()
@@ -117,10 +115,6 @@ export class Node<A> implements BiTreeBase<A> {
   readonly _A!: A
   readonly _URI!: URI
 
-  get [Symbol.toStringTag](): string {
-    return this._tag
-  }
-
   constructor(readonly value: A, readonly left: BiTree<A>, readonly right: BiTree<A>) { }
 
   inspect(): string {
@@ -128,7 +122,7 @@ export class Node<A> implements BiTreeBase<A> {
   }
 
   toString(): string {
-    return `new Node(${this.value}, ${this.left && this.left.toString()}, ${this.right && this.right.toString()})`
+    return `new Node(${this.value}, ${this.left.toString()}, ${this.right.toString()})`
   }
 
   map<B>(f: (a: A) => B): BiTree<B> {
@@ -268,11 +262,15 @@ export const getMonoid = <A = never>(): Monoid<BiTree<A>> => (
 /** A TypeRep for the BiTree's Typeclasses */
 export const bitree: Functor1<URI>
                    & Foldable1<URI>
+                   & Alt1<URI>
+                   & Plus1<URI>
                    & Traversable1<URI> = {
   URI
 , map: (fa, f) => fa.map(f)
 , reduce: (fa, b, f) => fa.reduce(b, f)
 , traverse: F => (ta, f) => ta.traverse(F, f)
+, alt: (fx, fy) => fx.alt(fy)
+, zero: () => empty
 }
 
 export const convertToRose = <T>(tree: Node<T>): Tree<T> => {

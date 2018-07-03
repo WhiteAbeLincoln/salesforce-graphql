@@ -1,4 +1,4 @@
-import { Refinement, Predicate, tuple } from 'fp-ts/lib/function'
+import { Refinement, Predicate, tuple, not } from 'fp-ts/lib/function'
 import { ValueNode, StringValueNode, Kind, IntValueNode } from 'graphql'
 import { cons, flatten, lefts, rights } from 'fp-ts/lib/Array'
 import { Either, left, right } from 'fp-ts/lib/Either'
@@ -59,8 +59,8 @@ export const isIntValueNode = (v: ValueNode): v is IntValueNode =>
   // typescript doesn't reduce valueNode's type unless we cast here
   v.kind === (Kind.INT as IntValueNode['kind'])
 
-export const unzip = <A, B>(pair: ReadonlyArray<[A, B]>): [A[], B[]] => (
-  pair.reduce((p, c) => tuple(cons(c[0], p[0]), cons(c[1], p[1])), [[], []] as [A[], B[]])
+export const unzip = <A, B>(ps: ReadonlyArray<[A, B]>): [A[], B[]] => (
+  ps.reduce((p, c) => tuple(cons(c[0], p[0]), cons(c[1], p[1])), [[], []] as [A[], B[]])
 )
 
 /**
@@ -223,11 +223,17 @@ export function truncateToDepth<T>(depth: number, tree?: Tree<T>): Tree<T> | (<T
   }
 }
 
+/**
+ * Returns true if a ParentQuery tree consists of only ParentQueryValues with kind='object'
+ * @param tree The parent query
+ */
+const allObjects = (tree: ParentQuery) => {
+  return tree.reduce(true, (parents, a) => parents && a.kind === 'object')
+}
+
 export const removeLeafObjects = (tree: ParentQuery): ParentQuery => {
   // I want to remove subtrees that are leafs and have value with kind='object'
-  const forest = tree.forest.filter(f =>
-    !(f.value.kind === 'object' && f.forest.length === 0)
-    ).map(removeLeafObjects)
+  const forest = tree.forest.filter(not(allObjects)).map(removeLeafObjects)
 
   return new Tree<ParentQueryValue>(tree.value, forest)
 }

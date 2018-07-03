@@ -19,7 +19,7 @@ export type FilterScope =
 /*
   interface ParentQuery<N extends Nat = Four> {
     field: string,
-    subFields: isZero<N> extends 'T' ? string[] : string[] | ParentQuery<Prev<N>>
+    subFields: isZero<N> extends 'T' ? string[] : Array<string | ParentQuery<Prev<N>>>
   }
 */
 
@@ -27,16 +27,28 @@ export type FilterScope =
 export type ParentQueryValue = { kind: 'object' | 'field', value: string }
 export type ParentQuery = Tree<ParentQueryValue>
 
-// because we accept strings as subForests, and transform them into ParentQuery objects without children internally,
-// there is no need to accept empty arrays for children
-export const parentQuery = (field: string, children: NonEmptyArray<ParentQuery | string>): ParentQuery =>
-  new Tree({ kind: 'object' as 'object', value: field }
-    , children.map(c =>
+export function parentQuery(field: string,
+                            selections: ReadonlyArray<ParentQuery | string>,
+                            unsafe = false): Either<string, ParentQuery> {
+  if (selections.length === 0) return left('A parent query must have a non-empty selection set')
+
+  const tree = new Tree({ kind: 'object' as 'object', value: field }
+    , selections.map(c =>
       typeof c === 'string'
         ? new Tree({ kind: 'field' as 'field', value: c }, [])
         : c
     )
   )
+
+  if (unsafe) {
+    // don't validate height of tree if unsafe is true
+    // FIXME: This is a hack to let me parse the graphql query from bottom-up
+    // see parseFieldsAndParents in src/util/resolve/execute.ts
+    return right(tree)
+  }
+
+  return validateParentQuery(tree)
+}
 
 export interface SOQLQueryFilters {
   limit?: number
@@ -60,23 +72,34 @@ export interface ChildQuery extends SOQLQuery {
 }
 
 export const childQuery = (field: string,
-                           selections: NonEmptyArray<ParentQuery | string>,
+                           selections: ReadonlyArray<ParentQuery | string>,
                            filters?: SOQLQueryFilters
-                          ): ChildQuery => ({
-  ...soqlQuery(field, selections, filters) as ChildQuery,
-  kind: 'child'
-})
+                          ): Either<string, ChildQuery> => (
+  soqlQuery(field, selections, filters).map(c =>
+    ({
+      ...(c as ChildQuery)
+    , kind: 'child' as 'child'
+    })
+  )
+)
 
 export type QuerySelection = ParentQuery | ChildQuery | string
 
 export const soqlQuery = (object: string,
-                          selections: NonEmptyArray<QuerySelection>,
+                          selections: ReadonlyArray<QuerySelection>,
                           filters?: SOQLQueryFilters
-                         ): SOQLQuery => ({
-  object
-, selections
-, ...filters
-})
+                         ): Either<string, SOQLQuery> => {
+  if (selections.length === 0) {
+    return left('Must select at least one field, child query, or parent query')
+  }
+
+  return right(
+    { object
+    , selections: selections as NonEmptyArray<QuerySelection>
+    , ...filters
+    }
+  )
+}
 
 /**
  * Flattens a rose tree into its paths as strings
@@ -101,31 +124,21 @@ const validateParentQuery = (query: ParentQuery): Either<string, ParentQuery> =>
 )
 
 export const soql = (query: SOQLQuery | ChildQuery): Either<string, string> => {
-  if (query.selections.length === 0) {
-    return left(`Must specify at least one of 'fields', 'childQueries', or 'parentQueries'`)
-  }
-
   const partitioned = partition(query.selections, {
     children: (q): q is ChildQuery => typeof q !== 'string' && (q as any).kind === 'child'
   , parents: (q): q is ParentQuery => typeof q !== 'string' && q instanceof Tree
   , fields: (q): q is string => typeof q === 'string'
   })
 
-  const parentQueries
-    = unzipEithers(
-        // Validate that our parentQueries (if any) are not nested more than 5 times
-        // preferably this would be done in the type system, but its not possible in typescript
-        partitioned.parents.map(validateParentQuery)
-      )
-      .map(pqs => flatten(pqs.map(flattenParentQuery)))
+  const pqs
+    = flatten(partitioned.parents.map(flattenParentQuery))
       // No more than 35 child-to-parent relationships can be specified in a query
-      .chain(pqs =>
-          pqs.length > 35
-            ? left(
-                ['No more than 35 child-to-parent relationships can be specified in a query']
-              ) as Left<string[], string[]>
-            : right(pqs) as Right<string[], string[]>
-        )
+  const parentQueries
+    = pqs.length > 35
+        ? left(
+            ['No more than 35 child-to-parent relationships can be specified in a query']
+          ) as Left<string[], string[]>
+        : right(pqs) as Right<string[], string[]>
 
   const fields = right(partitioned.fields) as Right<string[], string[]>
 

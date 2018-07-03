@@ -1,9 +1,12 @@
 import { QueryResult, ConnectionOptions, Connection } from 'jsforce'
-import { mapObj, partition, truncateToDepth, removeLeafObjects, unzipEithers } from '../util'
+import { mapObj, partition, truncateToDepth, removeLeafObjects } from '../util'
 import { AnnotatedFieldSet } from './annotate'
-import { isLeafField, isParentField, isChildField, NonEmptyArray } from '../../types'
-import { parentQuery, ParentQuery, childQuery } from '../../SOQL/SOQL'
+import { isLeafField, isParentField, isChildField } from '../../types'
+import { parentQuery, ParentQuery, childQuery, ChildQuery } from '../../SOQL/SOQL'
 import { getWhereClause } from '../GraphQLWhere/Parse'
+import { Either, either } from 'fp-ts/lib/Either'
+import { sequence } from 'fp-ts/lib/Traversable'
+import { array } from 'fp-ts/lib/Array'
 
 export interface AuthenticationInfo {
   username: string
@@ -89,31 +92,37 @@ export const getQueryInfo = (field: AnnotatedFieldSet): QueryInfo => {
 }
 
 export const parseFieldsAndParents
-  = (qInfo: QueryInfo): { object: string, fields: string[], parents: ParentQuery[], args: any } => {
+  = (qInfo: QueryInfo): Either<string, { object: string, fields: string[], parents: ParentQuery[], args: any }> => {
     const object = qInfo.field.fieldName
     // always include the Id field so we have some reference for filtering with sub-resolvers
     const fields = [...new Set(['Id', ...qInfo.leafs.map(l => l.fieldName)])]
     // we truncate the parent queries to what we know is a valid request
     // the sub-resolvers will handle making new requests to get the other data
-    const parents = qInfo.parents.map(p => {
-      const { object, fields, parents } = parseFieldsAndParents(p)
-      return parentQuery(object, [...fields, ...parents] as NonEmptyArray<any>)
-    }).map(truncateToDepth(5)).map(removeLeafObjects)
+    const parents = qInfo.parents.map(p =>
+      parseFieldsAndParents(p)
+        // FIXME: get rid of this unsafe parentQuery hack
+        .chain(({object, fields, parents}) => parentQuery(object, [...fields, ...parents], true))
+    ).map(p => p.map(truncateToDepth(5)).map(removeLeafObjects))
 
-    return { object, fields, parents, args: qInfo.field.args }
+    return sequence(either, array)(parents)
+      .map(ps => ({ object, fields, parents: ps, args: qInfo.field.args }))
   }
 
-export const parseChildren = (children: QueryInfo[]) => {
-    return unzipEithers(children.map(c => {
-        const { object, fields, parents, args } = parseFieldsAndParents(c)
-        const where = getWhereClause(args)
-        return where.map(w =>
-          childQuery(object, [...fields, ...parents] as NonEmptyArray<any>, {
-            where: w
-          , offset: args.offset
-          , limit: args.limit
-          , orderBy: args.orderBy
-          })
-        )
-    })).mapLeft(e => e.join('\n'))
+export const parseChildren = (children: QueryInfo[]): Either<string, ChildQuery[]> => {
+  return sequence(either, array)(
+    children.map(c => {
+      return parseFieldsAndParents(c)
+        .chain(({ object, fields, parents, args }) => (
+          getWhereClause(args)
+            .chain(w =>
+              childQuery(object, [...fields, ...parents], {
+                where: w
+              , offset: args.offset
+              , limit: args.limit
+              , orderBy: args.orderBy
+              })
+            )
+        ))
+    })
+  )
 }
