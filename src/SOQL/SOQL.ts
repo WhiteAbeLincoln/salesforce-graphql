@@ -71,6 +71,12 @@ export interface ChildQuery extends SOQLQuery {
   selections: NonEmptyArray<ParentQuery | string>
 }
 
+export interface TypeofQuery {
+  field: 'Owner' | 'Who' | 'What'
+  when: NonEmptyArray<{ object: string, fields: NonEmptyArray<string> }>
+  else?: NonEmptyArray<string>
+}
+
 export const childQuery = (field: string,
                            selections: ReadonlyArray<ParentQuery | string>,
                            filters?: SOQLQueryFilters
@@ -83,7 +89,7 @@ export const childQuery = (field: string,
   )
 )
 
-export type QuerySelection = ParentQuery | ChildQuery | string
+export type QuerySelection = ParentQuery | ChildQuery | TypeofQuery | string
 
 export const soqlQuery = (object: string,
                           selections: ReadonlyArray<QuerySelection>,
@@ -127,6 +133,7 @@ export const soql = (query: SOQLQuery | ChildQuery): Either<string, string> => {
   const partitioned = partition(query.selections, {
     children: (q): q is ChildQuery => typeof q !== 'string' && (q as any).kind === 'child'
   , parents: (q): q is ParentQuery => typeof q !== 'string' && q instanceof Tree
+  , typeof: (q): q is TypeofQuery => typeof q !== 'string' && (q as any).when && (q as any).field
   , fields: (q): q is string => typeof q === 'string'
   })
 
@@ -162,9 +169,11 @@ export const soql = (query: SOQLQuery | ChildQuery): Either<string, string> => {
 
   return combined
     .map(pipe(
+  pipe(
   /* SELECT   */   s => `SELECT ${s.join(', ')}`
-  /* TYPEOF   */
+  /* TYPEOF   */ , append(partitioned.typeof.length > 0 && partitioned.typeof.map(parseTypeof).join('\n'))
   /* FROM     */ , append(`FROM ${query.object}`)
+  )
   /* SCOPE    */ , append(typeof query.scope === 'string' && `USING SCOPE ${query.scope}`)
   /* WHERE    */ , append(typeof query.where !== 'undefined'
     && getWhere(query.where).map(w => `WHERE ${w}`).getOrElse(''))
@@ -183,6 +192,18 @@ export const soql = (query: SOQLQuery | ChildQuery): Either<string, string> => {
     ))
     .mapLeft(s => s.join('\n')) // join errors with newline
 }
+
+const parseTypeof = (query: TypeofQuery): string => (
+`TYPEOF ${query.field}
+  ${query.when.map(w =>
+  `WHEN ${w.object} THEN ${w.fields.join(', ')}`
+  ).join('\n')}
+  ${query.else ?
+  `ELSE ${query.else.join(', ')}`
+  : ''}
+END
+`
+)
 
 const getWhere = (where: string | WhereTree): Option<string> => {
   const whereStr = typeof where === 'string' ? where : parseTree(where)

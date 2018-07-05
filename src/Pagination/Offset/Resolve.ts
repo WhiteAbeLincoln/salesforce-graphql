@@ -41,7 +41,7 @@ const childResolver = (
   // jsforce does, (and I think salesforce always does, but we are allowing arbitrary resolvers)
   // const parentObj = source.attributes.type
   // TODO: figure out if this is always correct
-  const parentObj = annotatedFields.parentObj!.name
+  const parentObj = annotatedFields.parentConfigObj!.name
 
   const queryInfo = getQueryInfo(annotatedFields)
   const children = parseChildren([queryInfo])
@@ -103,9 +103,10 @@ const parentResolver = (
   annotatedFields: AnnotatedFieldSet,
   queryFun: (context: any) => (query: string) => Promise<any[] | null>
 ) => {
+  // TODO: Handle polymorphic relationships
   // TODO: Remove code duplication between this and rootResolver
   const queryInfo = getQueryInfo(annotatedFields)
-  const parentObj = annotatedFields.parentObj!.name
+  const parentObj = annotatedFields.parentConfigObj.name
   const parentId = source.Id
 
   return parseFieldsAndParents(queryInfo).chain(({ fields, parents }) =>
@@ -120,7 +121,7 @@ const parentResolver = (
   .map(queryFun(context))
   .map(ps => ps.then(v => {
     // parent resolvers will always return an object
-    return v && v[0]
+    return v && { ...v[0], __type: v[0]}
   }))
 }
 

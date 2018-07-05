@@ -1,18 +1,21 @@
 import { FieldSet, ConcreteFieldSet, AbstractFieldSet,
   AbstractFieldSetCondition, ConcreteFieldSetCondition, FieldSetCondition } from '../GraphQLUtils'
 import { FieldConfig, ObjectConfig } from '../../types'
-import { GraphQLCompositeType, getNamedType, isAbstractType } from 'graphql'
+import { GraphQLCompositeType, getNamedType } from 'graphql'
 
 export interface AnnotatedConcreteFieldSet extends ConcreteFieldSet {
-  parentObj?: ObjectConfig
-  configField?: FieldConfig
+  annotated: true
+  parentConfigObj: ObjectConfig
+  configField: FieldConfig
   children?: AnnotatedFieldSet[]
 }
 
 export interface AnnotatedAbstractFieldSet extends AbstractFieldSet {
-  parentObj?: ObjectConfig
-  configField?: FieldConfig
-  children: AnnotatedFieldSet[]
+  annotated: true
+  parentConfigObj: ObjectConfig
+  configField: FieldConfig
+  possibleSets: AnnotatedFieldSetCondition[]
+  children: Array<AnnotatedFieldSet | FieldSet>
 }
 
 export interface AnnotatedAbstractFieldSetCondition extends AbstractFieldSetCondition {
@@ -20,7 +23,8 @@ export interface AnnotatedAbstractFieldSetCondition extends AbstractFieldSetCond
 }
 
 export interface AnnotatedConcreteFieldSetCondition extends ConcreteFieldSetCondition {
-  fields: AnnotatedFieldSet[]
+  fields: Array<AnnotatedFieldSet | FieldSet>
+  typeConfig: ObjectConfig
 }
 
 export type AnnotatedFieldSetCondition = AnnotatedAbstractFieldSetCondition | AnnotatedConcreteFieldSetCondition
@@ -37,9 +41,9 @@ export const annotateFieldSet = (root: GraphQLCompositeType,
     3. use the current field in the sfobject to determine whether this is a child or parent rel
   */
   const rootName = root.name
-  const sfobject = objectMap[rootName]
+  const parentConfigObj = objectMap[rootName] as Readonly<ObjectConfig> | undefined
   const currField = fieldSet.fieldName
-  const currSFField = sfobject.fields[currField]
+  const configField = parentConfigObj && parentConfigObj.fields[currField]
 
   switch (fieldSet.kind) {
     case 'concrete': {
@@ -50,9 +54,10 @@ export const annotateFieldSet = (root: GraphQLCompositeType,
 
       const ret: AnnotatedConcreteFieldSet
         = { ...fieldSet
-          , configField: currSFField
-          , parentObj: sfobject
+          , configField
+          , parentConfigObj
           , children
+          , annotated: true
           }
 
       return ret
@@ -61,7 +66,7 @@ export const annotateFieldSet = (root: GraphQLCompositeType,
     case 'abstract': {
       // TODO: figure out how to handle abstract fieldSets
       const namedType = getNamedType(fieldSet.type) as GraphQLCompositeType
-      const children: AnnotatedFieldSet[] = fieldSet.children.map(
+      const children: Array<AnnotatedFieldSet | FieldSet> = fieldSet.children.map(
         // don't touch synthetic typename, which is synthetic
         c => c.fieldName !== '__typename' ? annotateFieldSet(namedType, c, objectMap) : c
       )
@@ -72,10 +77,11 @@ export const annotateFieldSet = (root: GraphQLCompositeType,
 
       const ret: AnnotatedAbstractFieldSet
         = { ...fieldSet
-          , configField: currSFField
-          , parentObj: sfobject
+          , configField
+          , parentConfigObj
           , children
           , possibleSets
+          , annotated: true
           }
 
       return ret
@@ -83,17 +89,31 @@ export const annotateFieldSet = (root: GraphQLCompositeType,
   }
 }
 
+export const isAnnotatedFieldSet = (f: FieldSet): f is AnnotatedFieldSet => !!(f as AnnotatedFieldSet).annotated
+
 const annotateFieldSetCondition = (cond: Readonly<FieldSetCondition>,
                                    objectMap: { readonly [name: string]: Readonly<ObjectConfig> }
                                   ): AnnotatedFieldSetCondition => {
-  const type = cond.type
-  if (isAbstractType(type)) {
-    const fields = (cond.fields as FieldSetCondition[]).map(f => annotateFieldSetCondition(f, objectMap))
-    const ret: AnnotatedAbstractFieldSetCondition = { type, fields }
+  if (cond.kind === 'abstractCondition') {
+    const type = cond.type
+    const fields = cond.fields.map(f => annotateFieldSetCondition(f, objectMap))
+    const ret: AnnotatedAbstractFieldSetCondition = {
+      kind: cond.kind
+    , type
+    , fields
+    }
     return ret
   } else {
-    const fields = (cond.fields as FieldSet[]).map(f => annotateFieldSet(type, f, objectMap))
-    const ret: AnnotatedConcreteFieldSetCondition = { type, fields }
+    const type = cond.type
+    const fields: Array<AnnotatedFieldSet | FieldSet>
+      = cond.fields.map(f => f.fieldName !== '__typename' ? annotateFieldSet(type, f, objectMap) : f)
+    const typeConfig = objectMap[type.name]
+    const ret: AnnotatedConcreteFieldSetCondition = {
+      kind: cond.kind
+    , type
+    , fields
+    , typeConfig
+    }
     return ret
   }
 }

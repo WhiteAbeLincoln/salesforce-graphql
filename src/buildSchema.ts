@@ -1,7 +1,7 @@
 import { Option, none, some } from 'fp-ts/lib/Option'
 import { GraphQLBoolean, GraphQLFieldConfig, GraphQLFloat,
   GraphQLInt, GraphQLLeafType, GraphQLNonNull,
-  GraphQLObjectType, GraphQLString, GraphQLUnionType } from 'graphql'
+  GraphQLObjectType, GraphQLString, GraphQLUnionType, GraphQLObjectTypeConfig } from 'graphql'
 import { Field as SObjectField, DescribeSObjectResult, ChildRelationship } from 'jsforce'
 import mem from 'mem'
 import { SalesforceFieldConfig, BuildObjectsMiddleware,
@@ -167,13 +167,13 @@ const genFields = (obj: Readonly<ObjectConfig>,
     if (isLeafField(field) || isGraphQLFieldConfig(field)) return middleware(field, fields, obj, gqlObjects)
 
     if (isChildField(field)) {
-        const type = gqlObjects[field.referenceTo]
-        const configRef = objectConfigs[field.referenceTo] as ObjectConfig | undefined
-        return middleware(
-          { ...field
-          , type
-          }, (configRef && configRef.fields) || {}, obj, gqlObjects
-        )
+      const type = gqlObjects[field.referenceTo]
+      const configRef = objectConfigs[field.referenceTo] as ObjectConfig | undefined
+      return middleware(
+        { ...field
+        , type
+        }, (configRef && configRef.fields) || {}, obj, gqlObjects
+      )
     }
 
     if (isParentField(field)) {
@@ -221,8 +221,9 @@ export const buildGraphQLObjects =
         /* FIXME: This is undefined behavior: GraphQLJS doesn't say anything about
             keeping fields from the passed configuration object on the constructed object
         */
-        ...obj as any
+        ...obj as GraphQLObjectTypeConfig<any, any>
       , fields: () => genFields(obj, objectsMap, newObjMap, middleware)
+      , isTypeOf: value => value.__typename === obj.name
       })
 
       // we're being mutable here for the sake of performance

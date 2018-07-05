@@ -1,12 +1,13 @@
 import { QueryResult, ConnectionOptions, Connection } from 'jsforce'
 import { mapObj, partition, truncateToDepth, removeLeafObjects } from '../util'
-import { AnnotatedFieldSet } from './annotate'
+import { AnnotatedFieldSet, isAnnotatedFieldSet } from './annotate'
 import { isLeafField, isParentField, isChildField } from '../../types'
 import { parentQuery, ParentQuery, childQuery, ChildQuery } from '../../SOQL/SOQL'
 import { getWhereClause } from '../GraphQLWhere/Parse'
 import { Either, either } from 'fp-ts/lib/Either'
 import { sequence } from 'fp-ts/lib/Traversable'
 import { array } from 'fp-ts/lib/Array'
+import { and } from '../functional'
 
 export interface AuthenticationInfo {
   username: string
@@ -77,10 +78,24 @@ export interface QueryInfo {
 }
 
 export const getQueryInfo = (field: AnnotatedFieldSet): QueryInfo => {
-  const partitioned = partition(field.children!, {
-    leafFields: c => !!c.configField && isLeafField(c.configField)
-  , childFields: c => !!c.configField && isChildField(c.configField)
-  , parentFields: c => !!c.configField && isParentField(c.configField)
+  if (field.kind === 'abstract') {
+    const partitioned = partition(field.children || [], {
+      leafFields: and(isAnnotatedFieldSet, c => isLeafField(c.configField))
+    , childFields: and(isAnnotatedFieldSet, c => isChildField(c.configField))
+    , parentFields: and(isAnnotatedFieldSet, c => isParentField(c.configField))
+    })
+
+    return {
+      leafs: partitioned.leafFields
+    , childs: partitioned.childFields.map(getQueryInfo)
+    , parents: partitioned.parentFields.map(getQueryInfo)
+    , field
+    }
+  } else {
+  const partitioned = partition(field.children || [], {
+    leafFields: c => isLeafField(c.configField)
+  , childFields: c => isChildField(c.configField)
+  , parentFields: c => isParentField(c.configField)
   })
 
   return {
@@ -89,6 +104,7 @@ export const getQueryInfo = (field: AnnotatedFieldSet): QueryInfo => {
     , parents: partitioned.parentFields.map(getQueryInfo)
     , field
     }
+  }
 }
 
 export const parseFieldsAndParents

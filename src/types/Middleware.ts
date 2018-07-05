@@ -1,4 +1,4 @@
-import { GraphQLFieldConfig, GraphQLObjectType, GraphQLFieldResolver } from 'graphql'
+import { GraphQLFieldConfig, GraphQLObjectType, GraphQLResolveInfo } from 'graphql'
 import { ObjectConfig, FieldConfig, SalesforceObjectConfig } from './ObjectConfig'
 
 export type BuildObjectsMiddleware = (
@@ -10,4 +10,7 @@ export type BuildObjectsMiddleware = (
 
 export type ResolverMiddleware =
   (rootQuery: SalesforceObjectConfig,
-   objectMap: { [x: string]: SalesforceObjectConfig }) => GraphQLFieldResolver<any, any>
+   objectMap: { [x: string]: SalesforceObjectConfig }) =>
+   (source: any, context: any, args: { [argName: string]: any }, info: GraphQLResolveInfo) =>
+   | { __typename: string } | Array<{ __typename: string }>
+   | Promise<{ __typename: string } | Array<{ __typename: string }>>
