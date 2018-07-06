@@ -151,7 +151,9 @@ const createUnion = mem(
   (names: string[], types: GraphQLObjectType[]) =>
     new GraphQLUnionType({ name: joinNames(names, 'Union')
                          , description: `A union of ${names.join(', ')}`
-                         , types }),
+                         , types
+                         , resolveType: value => value.__gqltype
+                        }),
   { cacheKey: (n: string[], _: any) => n.join() }
 )
 
@@ -223,7 +225,6 @@ export const buildGraphQLObjects =
         */
         ...obj as GraphQLObjectTypeConfig<any, any>
       , fields: () => genFields(obj, objectsMap, newObjMap, middleware)
-      , isTypeOf: value => value.__typename === obj.name
       })
 
       // we're being mutable here for the sake of performance

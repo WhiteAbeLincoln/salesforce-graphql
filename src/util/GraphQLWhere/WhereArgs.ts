@@ -75,13 +75,17 @@ export const createWhereLeaf = mem((fields: Array<[string, FieldType]>) => (
 ))
 
 export const createWhereArgs = (leafFields: Array<[string, FieldType]>) => {
-  const config: { [name in keyof Required<WhereArguments>]: GraphQLArgumentConfig }
+  const filter = leafFields.length > 0 ? {
+    filter: {
+      type: createWhere(createWhereLeaf(leafFields))
+    // tslint:disable-next-line:max-line-length
+    , description: `A tree representing a SOQL Where clause. Takes priority over 'filterString' if both are specified`
+    }
+  } : {}
+
+  const config: { [name in keyof WhereArguments]: GraphQLArgumentConfig }
     = {
-        filter: {
-          type: createWhere(createWhereLeaf(leafFields))
-        // tslint:disable-next-line:max-line-length
-        , description: `A tree representing a SOQL Where clause. Takes priority over 'filterString' if both are specified`
-        }
+        ...filter
       , filterString: {
           type: GraphQLString
         , description: 'A SOQL Where clause'

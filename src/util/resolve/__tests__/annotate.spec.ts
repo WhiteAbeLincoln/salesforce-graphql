@@ -42,7 +42,6 @@ const boilerplate = (objects: SalesforceObjectConfig[],
 }
 
 describe('annotateFieldSet', () => {
-  // asdf
   it('properly annotates a concrete object', () => {
     const jedi = salesforceObjectConfig('Jedi', 'A Jedi', {
       says: leafField(GraphQLString, 'string', true, 'Hello There')
@@ -94,6 +93,7 @@ describe('annotateFieldSet', () => {
   })
 
   it('properly annotates an abstract object', () => {
+    expect.assertions(22)
     const jedi = salesforceObjectConfig('Jedi', 'A Jedi', {
       name: leafField(GraphQLString, 'string', true, 'This jedi\'s name')
     , Master: parentField(['Jedi'], 'This jedi\'s Master')
@@ -106,16 +106,20 @@ describe('annotateFieldSet', () => {
     , Apprentice: parentField(['Sith'], 'This sith\'s apprentice')
     })
 
-    const rootQuery = salesforceObjectConfig('Query', 'Query', {
-      ForceUser: parentField(['Jedi', 'Sith'], 'A Force User')
+    const forceUser = salesforceObjectConfig('ForceUser', 'A Force User', {
+      user: parentField(['Jedi', 'Sith'], 'A Force User')
     })
 
-    const resolve = (_query: string): Promise<any> => {
-      return Promise.resolve({ name: 'Darth Maul', __typename: 'Sith' })
-    }
+    const rootQuery = salesforceObjectConfig('Query', 'Query', {
+      forceUsers: childField('ForceUser', 'Force Users')
+    })
 
     // tslint:disable-next-line:no-let prefer-const
     let depth = 1
+
+    const resolve = (_query: string): Promise<any> => {
+      return Promise.resolve([{ Id: 1, user: { Id: 11, name: 'Obi-Wan Kenobi' } }])
+    }
 
     const test: Arg3<typeof boilerplate> = (objectMap, info) => {
       const parentObj = info.parentType
@@ -124,9 +128,9 @@ describe('annotateFieldSet', () => {
       expect(annotatedFields.parentConfigObj).toBeDefined()
       expect(annotatedFields.configField).toBeDefined()
 
-      if (depth === 1) {
-        expect(annotatedFields.parentConfigObj).toEqual(rootQuery)
-        expect(annotatedFields.configField).toEqual(rootQuery.fields.ForceUser)
+      if (depth === 2) {
+        expect(annotatedFields.parentConfigObj).toEqual(forceUser)
+        expect(annotatedFields.configField).toEqual(forceUser.fields.user)
         const possibleSets = (annotatedFields as AnnotatedAbstractFieldSet).possibleSets
         expect(possibleSets).toBeDefined()
         expect(possibleSets).toHaveLength(2)
@@ -151,29 +155,27 @@ describe('annotateFieldSet', () => {
         }
       }
 
-      if (depth === 2) {
-        expect(annotatedFields.parentConfigObj).toEqual(sith)
-        expect(annotatedFields.configField).toEqual(sith.fields.name)
-      }
-
       depth++
     }
 
     const gqlQuery = `
       query {
-        ForceUser {
-          ... on Jedi {
+        forceUsers {
+          user {
             __typename
-            name
-          }
-          ... on Sith {
-            __typename
-            name
+            ... on Jedi {
+              __typename
+              name
+            }
+            ... on Sith {
+              __typename
+              name
+            }
           }
         }
       }
     `
 
-    return boilerplate([jedi, sith, rootQuery], rootQuery, test, resolve, gqlQuery)
+    return boilerplate([jedi, sith, forceUser, rootQuery], rootQuery, test, resolve, gqlQuery)
   })
 })

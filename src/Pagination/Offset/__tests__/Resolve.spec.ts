@@ -589,4 +589,76 @@ describe('resolver', () => {
         })
       )
   })
+
+  it('gives the correct SOQL for a query with polymorphic parent relationship', () => {
+    const jedi = salesforceObjectConfig('Jedi', 'A Jedi', {
+      name: leafField(GraphQLString, 'string', true, 'This jedi\'s name')
+    , Master: parentField(['Jedi'], 'This jedi\'s Master')
+    , Padawans: childField('Jedi', 'This jedi\'s trainees')
+    })
+
+    const sith = salesforceObjectConfig('Sith', 'A Sith', {
+      name: leafField(GraphQLString, 'string', true, 'This jedi\'s name')
+    , Master: parentField(['Jedi'], 'This jedi\'s Master')
+    , Apprentice: parentField(['Sith'], 'This sith\'s apprentice')
+    })
+
+    const forceUser = salesforceObjectConfig('ForceUser', 'A Force User', {
+      user: parentField(['Jedi', 'Sith'], 'A Force User')
+    })
+
+    const rootQuery = salesforceObjectConfig('Query', 'Query', {
+      forceUsers: childField('ForceUser', 'Force Users')
+    })
+
+    const tests: Array<(query: string) => Promise<any[]>>
+      = [ (query: string) => {
+            expect(query).toBe('SELECT Id, user.Id, user.name FROM forceUsers WHERE ( user.Type = \'Jedi\' )')
+            return Promise.resolve([{ Id: 1, user: { Id: 11, name: 'Obi-Wan Kenobi' } }])
+          }
+        , (query: string) => {
+            // tslint:disable-next-line:max-line-length
+            expect(query).toBe('SELECT Id, user.Id, user.name FROM forceUsers WHERE ( user.Type = \'Sith\' )')
+            return Promise.resolve([{ Id: 2, user: { Id: 22, name: 'Darth Maul' } }])
+          }
+
+        ]
+
+    // tslint:disable-next-line:no-let prefer-const
+    let count = 0
+
+    const test = (query: string) => {
+      const fun = tests[count]
+      if (!fun) throw new Error('Not enough tests')
+      const res = fun(query)
+      count++
+
+      return res
+    }
+
+    const gqlQuery = `
+      query {
+        forceUsers {
+          user {
+            ... on Jedi {
+              __typename
+              name
+            }
+            ... on Sith {
+              __typename
+              name
+            }
+          }
+        }
+      }
+    `
+
+    return boilerplate([jedi, sith, forceUser, rootQuery], rootQuery, test, gqlQuery)
+      .then(v => expect(v).toEqual({
+        forceUsers: [
+          { user: {__typename: 'Jedi', name: 'Obi-Wan Kenobi'}}
+        , { user: {__typename: 'Sith', name: 'Darth Maul'}}
+        ]
+      }))
+  })
 })

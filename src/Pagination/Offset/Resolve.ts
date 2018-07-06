@@ -1,13 +1,16 @@
 import { getFieldSet } from '../../util'
-import { annotateFieldSet, AnnotatedFieldSet } from '../../util/resolve/annotate'
+import { annotateFieldSet, AnnotatedFieldSet, AnnotatedConcreteFieldSetCondition } from '../../util/resolve/annotate'
 import { getQueryInfo, parseChildren,
-  parseFieldsAndParents } from '../../util/resolve/execute'
-import { Either, right } from 'fp-ts/lib/Either'
+  parseFieldsAndParents, ConcreteQueryInfo} from '../../util/resolve/execute'
+import { Either, right, left, either } from 'fp-ts/lib/Either'
 import { isChildField, isParentField, isLeafField, ResolverMiddleware } from '../../types'
 import { getWhereClause } from '../../util/GraphQLWhere/Parse'
-import { singleton } from '../../util/BinaryTree'
-import { BooleanExpression } from '../../SOQL/WhereTree'
+import { singleton, Node } from '../../util/BinaryTree'
+import { BooleanExpression, parseTree } from '../../SOQL/WhereTree'
 import { soqlQuery, soql } from '../../SOQL/SOQL'
+import { partitionMap, flatten, array } from 'fp-ts/lib/Array'
+import { sequence } from 'fp-ts/lib/Traversable'
+import { isArray } from 'util'
 
 const fieldResolver
   = (source: any, annotatedFields: AnnotatedFieldSet): Either<string, Promise<any>> => {
@@ -76,6 +79,73 @@ const rootResolver = (
 ) => {
   const queryInfo = getQueryInfo(annotatedFields)
 
+  const parents = partitionMap(queryInfo.parents,
+    (p): Either<ConcreteQueryInfo, ConcreteQueryInfo> => p.field.kind === 'abstract' ? left(p) : right(p)
+  )
+
+  if (parents.left.length > 0) {
+    const queries = flatten(parents.left.map(p => {
+      const polymorphicField = p.field.fieldName
+      // FIXME: Support nested branches
+      return p.branches.map(b => {
+        const objectConfig = (b.field as AnnotatedConcreteFieldSetCondition).typeConfig
+        const newParent = {
+          ...p
+        , leafs: [...p.leafs, ...b.leafs]
+        , childs: [...p.childs, ...b.childs]
+        , parents: [...p.parents, ...b.parents]
+        , branches: []
+        }
+
+        const combinedQueryInfo = {
+          ...queryInfo
+        , parents: [...parents.right, newParent]
+        , branches: []
+        }
+
+        return parseFieldsAndParents(combinedQueryInfo).chain(({ object, fields, parents, args}) =>
+          parseChildren(combinedQueryInfo.childs).chain(cs =>
+            getWhereClause(args)
+              .map(w => {
+                const whereLeaf = singleton<BooleanExpression>({
+                  field: `${polymorphicField}.Type`,
+                  op: '=',
+                  value: objectConfig.name
+                })
+
+                const where = typeof w === 'string'
+                  ? `(( ${w} ) AND ${parseTree(whereLeaf)})`
+                  : w.isLeaf() ? whereLeaf
+                  : new Node('AND' as 'AND', w, whereLeaf)
+
+                return where
+              })
+              .chain(w =>
+                soqlQuery(object, [...fields, ...parents, ...cs], {
+                  where: w
+                , offset: args.offset
+                , limit: args.limit
+                , orderBy: args.orderBy
+                })
+              )
+          )
+        )
+        .chain(soql)
+        .map(queryFun(context))
+        .map(ps => ps.then(v =>
+          v && v.map(v => ({
+              ...v
+            , [polymorphicField]: { ...v[polymorphicField], __gqltype: b.field.type }
+          }))
+        ))
+      })
+    }))
+
+    return sequence(either, array)(queries).map(
+      ps => Promise.all(ps)
+    ).map(p => p.then(vs => flatten(vs.map(v => isArray(v) ? v : [v]))))
+  }
+
   return parseFieldsAndParents(queryInfo).chain(({ object, fields, parents, args }) =>
     parseChildren(queryInfo.childs).chain(cs =>
       getWhereClause(args)
@@ -91,10 +161,6 @@ const rootResolver = (
   )
   .chain(soql)
   .map(queryFun(context))
-  .map(ps => ps.then(v => {
-    // root resolvers will always return a list
-    return v
-  }))
 }
 
 const parentResolver = (
@@ -121,7 +187,7 @@ const parentResolver = (
   .map(queryFun(context))
   .map(ps => ps.then(v => {
     // parent resolvers will always return an object
-    return v && { ...v[0], __type: v[0]}
+      return v && v[0]
   }))
 }
 

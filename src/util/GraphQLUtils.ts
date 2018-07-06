@@ -41,13 +41,13 @@ export interface AbstractFieldSet {
 export interface AbstractFieldSetCondition {
   kind: 'abstractCondition'
   type: GraphQLAbstractType
-  fields: FieldSetCondition[]
+  children: FieldSetCondition[]
 }
 
 export interface ConcreteFieldSetCondition {
   kind: 'concreteCondition'
   type: GraphQLObjectType
-  fields: FieldSet[]
+  children: FieldSet[]
 }
 
 export type FieldSetCondition = AbstractFieldSetCondition | ConcreteFieldSetCondition
@@ -129,7 +129,7 @@ const collectConditionedFragment = (info: GraphQLResolveInfo,
   const condition: FieldSetCondition
     = { kind: conditionalType instanceof GraphQLObjectType ? 'concreteCondition' : 'abstractCondition'
       , type: conditionalType
-      , fields: conditionalFields // if conditionalType is abstract then conditionalFields has type FieldSet[]
+      , children: conditionalFields // if conditionalType is abstract then conditionalFields has type FieldSet[]
       } as FieldSetCondition
     // { x: string } | { x: number } should equal { x: string | number }
     // that is for some cases a union of two records A, B should be

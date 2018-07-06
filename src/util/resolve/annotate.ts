@@ -19,11 +19,11 @@ export interface AnnotatedAbstractFieldSet extends AbstractFieldSet {
 }
 
 export interface AnnotatedAbstractFieldSetCondition extends AbstractFieldSetCondition {
-  fields: AnnotatedFieldSetCondition[]
+  children: AnnotatedFieldSetCondition[]
 }
 
 export interface AnnotatedConcreteFieldSetCondition extends ConcreteFieldSetCondition {
-  fields: Array<AnnotatedFieldSet | FieldSet>
+  children: Array<AnnotatedFieldSet | FieldSet>
   typeConfig: ObjectConfig
 }
 
@@ -41,7 +41,7 @@ export const annotateFieldSet = (root: GraphQLCompositeType,
     3. use the current field in the sfobject to determine whether this is a child or parent rel
   */
   const rootName = root.name
-  const parentConfigObj = objectMap[rootName] as Readonly<ObjectConfig> | undefined
+  const parentConfigObj = objectMap[rootName]
   const currField = fieldSet.fieldName
   const configField = parentConfigObj && parentConfigObj.fields[currField]
 
@@ -96,22 +96,22 @@ const annotateFieldSetCondition = (cond: Readonly<FieldSetCondition>,
                                   ): AnnotatedFieldSetCondition => {
   if (cond.kind === 'abstractCondition') {
     const type = cond.type
-    const fields = cond.fields.map(f => annotateFieldSetCondition(f, objectMap))
+    const children = cond.children.map(f => annotateFieldSetCondition(f, objectMap))
     const ret: AnnotatedAbstractFieldSetCondition = {
       kind: cond.kind
     , type
-    , fields
+    , children
     }
     return ret
   } else {
     const type = cond.type
-    const fields: Array<AnnotatedFieldSet | FieldSet>
-      = cond.fields.map(f => f.fieldName !== '__typename' ? annotateFieldSet(type, f, objectMap) : f)
+    const children: Array<AnnotatedFieldSet | FieldSet>
+      = cond.children.map(f => f.fieldName !== '__typename' ? annotateFieldSet(type, f, objectMap) : f)
     const typeConfig = objectMap[type.name]
     const ret: AnnotatedConcreteFieldSetCondition = {
       kind: cond.kind
     , type
-    , fields
+    , children
     , typeConfig
     }
     return ret

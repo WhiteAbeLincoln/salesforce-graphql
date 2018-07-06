@@ -234,7 +234,7 @@ describe('buildGraphQLObjects', () => {
           , fields: {}
           }))
 
-          expect(type).toMatchObject(gqField.type)
+          expect(type.toString()).toEqual(gqField.type.toString())
         } else if (isParentField(field)) {
           const type = field.referenceTo.length > 1
             ? new GraphQLUnionType({

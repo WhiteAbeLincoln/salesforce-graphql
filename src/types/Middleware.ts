@@ -1,4 +1,4 @@
-import { GraphQLFieldConfig, GraphQLObjectType, GraphQLResolveInfo } from 'graphql'
+import { GraphQLFieldConfig, GraphQLObjectType, GraphQLFieldResolver } from 'graphql'
 import { ObjectConfig, FieldConfig, SalesforceObjectConfig } from './ObjectConfig'
 
 export type BuildObjectsMiddleware = (
@@ -8,9 +8,9 @@ export type BuildObjectsMiddleware = (
    objectMap: { readonly [name: string]: GraphQLObjectType }
   ) => GraphQLFieldConfig<any, any>
 
+/** The field __typename is used to resolve parametric queries, so every result value must include it */
+export type ResolvedValue = { __typename: string } | null | undefined
+
 export type ResolverMiddleware =
   (rootQuery: SalesforceObjectConfig,
-   objectMap: { [x: string]: SalesforceObjectConfig }) =>
-   (source: any, context: any, args: { [argName: string]: any }, info: GraphQLResolveInfo) =>
-   | { __typename: string } | Array<{ __typename: string }>
-   | Promise<{ __typename: string } | Array<{ __typename: string }>>
+   objectMap: { [x: string]: SalesforceObjectConfig }) => GraphQLFieldResolver<any, any>

@@ -76,8 +76,13 @@ const createOrderBy = mem((fieldNames: string[]) => {
 }, { cacheKey: (fieldNames: string[]) => joinNames(fieldNames) })
 
 export const createListArgs = (leafFields: Array<[string, FieldType]>) => {
+  const orderBy = leafFields.length > 0 ? {
+    orderBy: {
+      type: createOrderBy(leafFields.map(f => f[0]))
+    }
+  } : {}
   // list of (fieldName, sftype) tuples
-  const config: { [name in keyof Required<ListArguments>]: GraphQLArgumentConfig }
+  const config: { [name in keyof ListArguments]: GraphQLArgumentConfig }
     = { ...createWhereArgs(leafFields)
       , offset: {
           type: GraphQLUnsignedInt
@@ -87,9 +92,7 @@ export const createListArgs = (leafFields: Array<[string, FieldType]>) => {
           type: GraphQLUnsignedInt
         , description: 'Maximum number of rows to return'
         }
-      , orderBy: {
-          type: createOrderBy(leafFields.map(f => f[0]))
-        }
+      , ...orderBy
       }
   return config
 }
@@ -101,7 +104,7 @@ export const middleware: BuildObjectsMiddleware = (field, fields) => {
     const leafFields = getArgFields(fields)
     const args = createListArgs(leafFields)
     const type = new GraphQLList(field.type)
-    return { ...field, type, args }
+    return { ...field, type, args: args as any }
   }
 
   return field

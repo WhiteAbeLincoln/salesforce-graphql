@@ -1,6 +1,6 @@
 import { QueryResult, ConnectionOptions, Connection } from 'jsforce'
 import { mapObj, partition, truncateToDepth, removeLeafObjects } from '../util'
-import { AnnotatedFieldSet, isAnnotatedFieldSet } from './annotate'
+import { AnnotatedFieldSet, isAnnotatedFieldSet, AnnotatedFieldSetCondition } from './annotate'
 import { isLeafField, isParentField, isChildField } from '../../types'
 import { parentQuery, ParentQuery, childQuery, ChildQuery } from '../../SOQL/SOQL'
 import { getWhereClause } from '../GraphQLWhere/Parse'
@@ -70,45 +70,70 @@ const convertQueryResult = (q: QueryResult<any>): any[] | null => {
   })
 }
 
-export interface QueryInfo {
+export type QueryInfo = ConcreteQueryInfo | ConditionalQueryInfo
+
+export interface ConcreteQueryInfo {
   leafs: AnnotatedFieldSet[]
-  childs: QueryInfo[]
-  parents: QueryInfo[]
+  childs: ConcreteQueryInfo[]
+  parents: ConcreteQueryInfo[]
+  branches: ConditionalQueryInfo[]
   field: AnnotatedFieldSet
 }
 
-export const getQueryInfo = (field: AnnotatedFieldSet): QueryInfo => {
-  if (field.kind === 'abstract') {
+export interface ConditionalQueryInfo {
+  leafs: AnnotatedFieldSet[]
+  childs: ConcreteQueryInfo[]
+  parents: ConcreteQueryInfo[]
+  branches: ConditionalQueryInfo[]
+  field: AnnotatedFieldSetCondition
+}
+
+const getConditionalInfo = (field: AnnotatedFieldSetCondition): ConditionalQueryInfo => {
+  if (field.kind === 'concreteCondition') {
     const partitioned = partition(field.children || [], {
-      leafFields: and(isAnnotatedFieldSet, c => isLeafField(c.configField))
-    , childFields: and(isAnnotatedFieldSet, c => isChildField(c.configField))
-    , parentFields: and(isAnnotatedFieldSet, c => isParentField(c.configField))
+      leafs: and(isAnnotatedFieldSet, c => isLeafField(c.configField))
+    , childs: and(isAnnotatedFieldSet, c => isChildField(c.configField))
+    , parents: and(isAnnotatedFieldSet, c => isParentField(c.configField))
     })
 
     return {
-      leafs: partitioned.leafFields
-    , childs: partitioned.childFields.map(getQueryInfo)
-    , parents: partitioned.parentFields.map(getQueryInfo)
+      leafs: partitioned.leafs
+    , childs: partitioned.childs.map(getQueryInfo)
+    , parents: partitioned.parents.map(getQueryInfo)
+    , branches: []
     , field
     }
-  } else {
-  const partitioned = partition(field.children || [], {
-    leafFields: c => isLeafField(c.configField)
-  , childFields: c => isChildField(c.configField)
-  , parentFields: c => isParentField(c.configField)
-  })
+  }
 
   return {
-      leafs: partitioned.leafFields
-    , childs: partitioned.childFields.map(getQueryInfo)
-    , parents: partitioned.parentFields.map(getQueryInfo)
-    , field
-    }
+    leafs: []
+  , childs: []
+  , parents: []
+  , branches: field.children.map(getConditionalInfo)
+  , field
+  }
+}
+
+export const getQueryInfo = (field: AnnotatedFieldSet): ConcreteQueryInfo => {
+  const partitioned = partition(field.children || [], {
+    leafFields: and(isAnnotatedFieldSet, c => isLeafField(c.configField))
+  , childFields: and(isAnnotatedFieldSet, c => isChildField(c.configField))
+  , parentFields: and(isAnnotatedFieldSet, c => isParentField(c.configField))
+  })
+
+  const branches = field.kind === 'abstract' ? field.possibleSets.map(getConditionalInfo) : []
+
+  return {
+    leafs: partitioned.leafFields
+  , childs: partitioned.childFields.map(getQueryInfo)
+  , parents: partitioned.parentFields.map(getQueryInfo)
+  , branches
+  , field
   }
 }
 
 export const parseFieldsAndParents
-  = (qInfo: QueryInfo): Either<string, { object: string, fields: string[], parents: ParentQuery[], args: any }> => {
+  = (qInfo: ConcreteQueryInfo): Either<string, { object: string, fields: string[], parents: ParentQuery[], args: any }> => {
     const object = qInfo.field.fieldName
     // always include the Id field so we have some reference for filtering with sub-resolvers
     const fields = [...new Set(['Id', ...qInfo.leafs.map(l => l.fieldName)])]
@@ -124,7 +149,7 @@ export const parseFieldsAndParents
       .map(ps => ({ object, fields, parents: ps, args: qInfo.field.args }))
   }
 
-export const parseChildren = (children: QueryInfo[]): Either<string, ChildQuery[]> => {
+export const parseChildren = (children: ConcreteQueryInfo[]): Either<string, ChildQuery[]> => {
   return sequence(either, array)(
     children.map(c => {
       return parseFieldsAndParents(c)
