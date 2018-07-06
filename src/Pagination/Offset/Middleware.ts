@@ -57,14 +57,16 @@ const createOrderBy = mem((fieldNames: string[]) => {
           type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(FieldEnum(fieldNames))))
         }
       , dir: {
-          type: new GraphQLNonNull(DirectionEnum)
+          type: DirectionEnum
         , description:
             'Specifies whether the results are ordered in ascending (ASC) or descending (DESC) order. Default ASC'
-        }
+        , defaultValue: 'ASC'
+        } as GraphQLInputFieldConfig
       , nulls: {
           type: FirstLastEnum
         , description: 'Orders null records at the beginning (FIRST) or end (LAST) of the results. Default FIRST'
-        }
+        , defaultValue: 'FIRST'
+        } as GraphQLInputFieldConfig
       }
 
   return new GraphQLInputObjectType({

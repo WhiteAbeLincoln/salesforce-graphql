@@ -252,10 +252,23 @@ export const getSemigroup = <A = never>(): Semigroup<BiTree<A>> => (
   }
 )
 
-export const getMonoid = <A = never>(): Monoid<BiTree<A>> => (
+/**
+ * Concatenates two trees by attatching them both to a new node
+ *
+ * Not really a semigroup, since it doesn't fulfill the Associativity law
+ * however, it is still useful
+ * @param val the root value of the new node
+ */
+export const getFakeSemigroup = <A = never>(val: A): Semigroup<BiTree<A>> => (
   {
-    ...getSemigroup<A>()
-  , empty
+    concat: (x, y) => new Node(val, x, y)
+  }
+)
+
+export const getMonoid = <A = never>(semigroup = getSemigroup<A>()): Monoid<BiTree<A>> => (
+  {
+    ...semigroup
+  , empty: empty as BiTree<A>
   }
 )
 

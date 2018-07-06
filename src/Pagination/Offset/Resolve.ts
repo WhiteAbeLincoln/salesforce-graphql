@@ -1,16 +1,20 @@
 import { getFieldSet } from '../../util'
 import { annotateFieldSet, AnnotatedFieldSet, AnnotatedConcreteFieldSetCondition } from '../../util/resolve/annotate'
 import { getQueryInfo, parseChildren,
-  parseFieldsAndParents, ConcreteQueryInfo} from '../../util/resolve/execute'
+  parseFieldsAndParents, ConcreteQueryInfo, ConditionalQueryInfo} from '../../util/resolve/execute'
 import { Either, right, left, either } from 'fp-ts/lib/Either'
 import { isChildField, isParentField, isLeafField, ResolverMiddleware } from '../../types'
 import { getWhereClause } from '../../util/GraphQLWhere/Parse'
-import { singleton, Node } from '../../util/BinaryTree'
-import { BooleanExpression, parseTree } from '../../SOQL/WhereTree'
+import { singleton, getFakeSemigroup, getMonoid, BiTree, Node } from '../../util/BinaryTree'
+import { BooleanExpression, WhereTree, BooleanOp, parseTree } from '../../SOQL/WhereTree'
 import { soqlQuery, soql } from '../../SOQL/SOQL'
 import { partitionMap, flatten, array } from 'fp-ts/lib/Array'
 import { sequence } from 'fp-ts/lib/Traversable'
-import { isArray } from 'util'
+import { identity } from 'fp-ts/lib/function'
+import { getRecordMonoid, getArrayMonoid } from 'fp-ts/lib/Monoid'
+import { liftA2 } from 'fp-ts/lib/Apply'
+import { concat, foldr1C } from '../../util/functional'
+import { GraphQLObjectType } from 'graphql'
 
 const fieldResolver
   = (source: any, annotatedFields: AnnotatedFieldSet): Either<string, Promise<any>> => {
@@ -72,6 +76,58 @@ const childResolver = (
     }))
 }
 
+const basicRequest
+  = (queryInfo: ConcreteQueryInfo,
+     whereMap: (w: string | WhereTree) => string | WhereTree = identity) => {
+      return parseFieldsAndParents(queryInfo).chain(({ object, fields, parents, args }) =>
+        parseChildren(queryInfo.childs).chain(cs =>
+          getWhereClause(args)
+            .map(whereMap)
+            .chain(w =>
+              soqlQuery(object, [...fields, ...parents, ...cs], {
+                where: w
+              , offset: args.offset
+              , limit: args.limit
+              , orderBy: args.orderBy
+              })
+            )
+        )
+      )
+    }
+
+type BranchRequest = {
+  where: BiTree<BooleanOp | BooleanExpression>
+  parents: Array<{ p: ConcreteQueryInfo, type: GraphQLObjectType }>
+}
+
+const branchMappingFun = (p: ConcreteQueryInfo) => (b: ConditionalQueryInfo): BranchRequest => {
+  const polymorphicField = p.field.fieldName
+  const objectConfig = (b.field as AnnotatedConcreteFieldSetCondition).typeConfig
+  const newParent = {
+    ...p
+  , leafs: [...p.leafs, ...b.leafs]
+  , childs: [...p.childs, ...b.childs]
+  , parents: [...p.parents, ...b.parents]
+  , branches: []
+  }
+
+  const whereLeaf: BiTree<BooleanOp | BooleanExpression> = singleton<BooleanExpression>({
+    field: `${polymorphicField}.Type`,
+    op: '=',
+    value: objectConfig.name
+  })
+
+  return { parents: [{ p: newParent, type: b.field.type as GraphQLObjectType }], where: whereLeaf }
+}
+
+const monoid = getRecordMonoid<BranchRequest>({
+  where: getMonoid(getFakeSemigroup<BooleanOp | BooleanExpression>('AND' as 'AND'))
+, parents: getArrayMonoid()
+})
+
+const prod = liftA2(array)(concat(monoid))
+const getCombinations = foldr1C(array)(prod)
+
 const rootResolver = (
   context: any,
   annotatedFields: AnnotatedFieldSet,
@@ -84,83 +140,102 @@ const rootResolver = (
   )
 
   if (parents.left.length > 0) {
-    const queries = flatten(parents.left.map(p => {
-      const polymorphicField = p.field.fieldName
-      // FIXME: Support nested branches
-      return p.branches.map(b => {
-        const objectConfig = (b.field as AnnotatedConcreteFieldSetCondition).typeConfig
-        const newParent = {
-          ...p
-        , leafs: [...p.leafs, ...b.leafs]
-        , childs: [...p.childs, ...b.childs]
-        , parents: [...p.parents, ...b.parents]
-        , branches: []
-        }
+    // we combine the parents into a single request using AND where query
+    // we have to create all combinations of branches with parent requests
+    /* for a request like
+      enemy {
+        ... on Sith
+        ... on Jedi
+      }
+      friend {
+        ... on Jedi
+      }
+      we recieve something like the following from mapping over our parents and their branches
+      [
+        [ {where enemy.Type = Sith}, {where enemy.Type = Jedi} ]
+        [ {where friend.Type = Jedi} ]
+      ]
 
-        const combinedQueryInfo = {
-          ...queryInfo
-        , parents: [...parents.right, newParent]
-        , branches: []
-        }
+      we need to produce the following
+      [ {where enemy.Type = Sith AND friend.type = Jedi}, {where enemy.Type = Jedi AND friend.type = Jedi} ]
 
-        return parseFieldsAndParents(combinedQueryInfo).chain(({ object, fields, parents, args}) =>
-          parseChildren(combinedQueryInfo.childs).chain(cs =>
-            getWhereClause(args)
-              .map(w => {
-                const whereLeaf = singleton<BooleanExpression>({
-                  field: `${polymorphicField}.Type`,
-                  op: '=',
-                  value: objectConfig.name
-                })
+      This is the cartesian product
+      in haskell we do:
 
-                const where = typeof w === 'string'
-                  ? `(( ${w} ) AND ${parseTree(whereLeaf)})`
-                  : w.isLeaf() ? whereLeaf
-                  : new Node('AND' as 'AND', w, whereLeaf)
+      > import Control.Applicative
+      > let first = ["enemy.Type = Sith", "enemy.Type = Jedi"]
+      > let second = ["friend.Type = Jedi"]
+      > prod fst snd = (\a b -> a ++ " AND " ++ b) <$> fst <*> snd
+      > prod first second
 
-                return where
-              })
-              .chain(w =>
-                soqlQuery(object, [...fields, ...parents, ...cs], {
-                  where: w
-                , offset: args.offset
-                , limit: args.limit
-                , orderBy: args.orderBy
-                })
-              )
-          )
-        )
-        .chain(soql)
-        .map(queryFun(context))
-        .map(ps => ps.then(v =>
-          v && v.map(v => ({
-              ...v
-            , [polymorphicField]: { ...v[polymorphicField], __gqltype: b.field.type }
-          }))
-        ))
-      })
-    }))
+      ["enemy.Type = Sith AND friend.Type = Jedi", "enemy.Type = Jedi AND friend.Type = Jedi"]
+
+      notice that this is the definition of liftA2
+      liftA2 f x y = f <$> x <*> y
+      therefore
+
+      > prod = liftA2 (\a b -> a ++ " AND " ++ b)
+
+      notice that ++ is `mappend` for lists
+      if we create a monoid instance for our returned object, then the command should be as simple as
+      prod = liftA2 mappend
+
+      we can fold the list of lists to apply our cartesian product function over every one
+
+      > let combs = [first, second, ["mentor.Type = Sith"]]
+      > foldr1 prod combs
+
+      ["enemy.Type = Sith AND friend.Type = Jedi AND mentor.Type = Sith",
+        "enemy.Type = Jedi AND friend.Type = Jedi AND mentor.type = Sith"]
+    */
+
+    const combs = getCombinations(parents.left.map(p => p.branches.map(branchMappingFun(p))))
+    const queries = combs
+                    .map(query => {
+                      const combinedQueryInfo = {
+                        ...queryInfo
+                      , parents: [...parents.right, ...query.parents.map(p => p.p)]
+                      , branches: []
+                      }
+
+                      const fieldMappings = query.parents.map(p => ({ field: p.p.field.fieldName, type: p.type }))
+
+                      const whereLeaf = query.where
+                      return basicRequest(combinedQueryInfo, w => {
+                        const where = typeof w === 'string'
+                          ? `(( ${w} ) AND ${parseTree(whereLeaf)})`
+                          : w.isLeaf() ? whereLeaf
+                          : new Node('AND' as 'AND', w, whereLeaf)
+
+                        return where
+                      })
+                      .chain(soql)
+                      .map(queryFun(context))
+                      .map(ps => ps.then(v =>
+                        v && v.map(v => {
+                          return fieldMappings.reduce((value, field) => ({
+                            ...value
+                          , [field.field]: { ...value[field.field], __gqltype: field.type }
+                          }), v)
+                        })
+                      ))
+                    })
 
     return sequence(either, array)(queries).map(
       ps => Promise.all(ps)
-    ).map(p => p.then(vs => flatten(vs.map(v => isArray(v) ? v : [v]))))
+    ).map(p => p.then(vs => {
+      const combArr: Array<{Id: string}> = flatten(vs.filter((v): v is any[] => v !== null))
+      // we need to merge elements with the same id so that the resolver works
+      const hash = combArr.reduce((map, c) => {
+        return map.set(c.Id, Object.assign(map.get(c.Id) || {}, c))
+      }, new Map())
+      return hash.values()
+    }))
   }
 
-  return parseFieldsAndParents(queryInfo).chain(({ object, fields, parents, args }) =>
-    parseChildren(queryInfo.childs).chain(cs =>
-      getWhereClause(args)
-        .chain(w =>
-          soqlQuery(object, [...fields, ...parents, ...cs], {
-            where: w
-          , offset: args.offset
-          , limit: args.limit
-          , orderBy: args.orderBy
-          })
-        )
-    )
-  )
-  .chain(soql)
-  .map(queryFun(context))
+  return basicRequest(queryInfo)
+      .chain(soql)
+      .map(queryFun(context))
 }
 
 const parentResolver = (

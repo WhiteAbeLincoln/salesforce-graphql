@@ -1,6 +1,6 @@
 import { salesforceObjectConfig, childField, leafField,
   BuildObjectsMiddleware, SalesforceObjectConfig, parentField } from '../../../types'
-import { GraphQLString, GraphQLSchema, GraphQLFieldConfig, graphql } from 'graphql'
+import { GraphQLString, GraphQLSchema, GraphQLFieldConfig, graphql, GraphQLInt } from 'graphql'
 import { buildGraphQLObjects } from '../../../buildSchema'
 import { middleware } from '../Middleware'
 import { Endomorphism } from 'fp-ts/lib/function'
@@ -590,16 +590,17 @@ describe('resolver', () => {
       )
   })
 
-  it('gives the correct SOQL for a query with polymorphic parent relationship', () => {
+  it('gives the correct SOQL for a simple query with polymorphic parent queries', () => {
     const jedi = salesforceObjectConfig('Jedi', 'A Jedi', {
       name: leafField(GraphQLString, 'string', true, 'This jedi\'s name')
-    , Master: parentField(['Jedi'], 'This jedi\'s Master')
+    , Master: parentField(['Jedi', 'Sith'], 'This force user\'s Master')
     , Padawans: childField('Jedi', 'This jedi\'s trainees')
     })
 
     const sith = salesforceObjectConfig('Sith', 'A Sith', {
       name: leafField(GraphQLString, 'string', true, 'This jedi\'s name')
-    , Master: parentField(['Jedi'], 'This jedi\'s Master')
+    , Master: parentField(['Jedi', 'Sith'], 'This force user\'s Master')
+    , color: leafField(GraphQLString, 'string', true, 'The color')
     , Apprentice: parentField(['Sith'], 'This sith\'s apprentice')
     })
 
@@ -618,10 +619,9 @@ describe('resolver', () => {
           }
         , (query: string) => {
             // tslint:disable-next-line:max-line-length
-            expect(query).toBe('SELECT Id, user.Id, user.name FROM forceUsers WHERE ( user.Type = \'Sith\' )')
-            return Promise.resolve([{ Id: 2, user: { Id: 22, name: 'Darth Maul' } }])
+            expect(query).toBe('SELECT Id, user.Id, user.name, user.color FROM forceUsers WHERE ( user.Type = \'Sith\' )')
+            return Promise.resolve([{ Id: 2, user: { Id: 22, name: 'Darth Maul', color: 'red' } }])
           }
-
         ]
 
     // tslint:disable-next-line:no-let prefer-const
@@ -640,12 +640,102 @@ describe('resolver', () => {
       query {
         forceUsers {
           user {
+            __typename
             ... on Jedi {
-              __typename
               name
             }
             ... on Sith {
-              __typename
+              name
+              color
+            }
+          }
+        }
+      }
+    `
+
+    return boilerplate([jedi, sith, forceUser, rootQuery], rootQuery, test, gqlQuery)
+      .then(v => expect(v).toEqual({
+        forceUsers: [
+          { user: {__typename: 'Jedi', name: 'Obi-Wan Kenobi'} }
+        , { user: {__typename: 'Sith', name: 'Darth Maul', color: 'red'} }
+        ]
+      }))
+  })
+
+  it('gives the correct SOQL for a simple query with multiple distinct polymorphic parent queries', () => {
+    const jedi = salesforceObjectConfig('Jedi', 'A Jedi', {
+      name: leafField(GraphQLString, 'string', true, 'This jedi\'s name')
+    , Master: parentField(['Jedi', 'Sith'], 'This force user\'s Master')
+    , Padawans: childField('Jedi', 'This jedi\'s trainees')
+    })
+
+    const sith = salesforceObjectConfig('Sith', 'A Sith', {
+      name: leafField(GraphQLString, 'string', true, 'This jedi\'s name')
+    , Master: parentField(['Jedi', 'Sith'], 'This force user\'s Master')
+    , color: leafField(GraphQLString, 'string', true, 'The color')
+    , Apprentice: parentField(['Sith'], 'This sith\'s apprentice')
+    })
+
+    const forceUser = salesforceObjectConfig('ForceUser', 'A Force User', {
+      enemy: parentField(['Jedi', 'Sith'], 'A Force User')
+    , friend: parentField(['Jedi', 'Sith'], 'A Force User')
+    , Id: leafField(GraphQLInt, 'int', true, 'The Id')
+    })
+
+    const rootQuery = salesforceObjectConfig('Query', 'Query', {
+      forceUsers: childField('ForceUser', 'Force Users')
+    })
+
+    const tests: Array<(query: string) => Promise<any[]>>
+      = [ (query: string) => {
+            // tslint:disable-next-line:max-line-length
+            expect(query).toBe('SELECT Id, enemy.Id, enemy.name, enemy.color, friend.Id, friend.name FROM forceUsers WHERE (( enemy.Type = \'Sith\' ) AND ( friend.Type = \'Jedi\' ))')
+            return Promise.resolve([{
+              Id: 1
+            , enemy: { Id: 11, name: 'Darth Maul', color: 'red' }
+            , friend: { Id: 12, name: 'Obi-Wan Kenobi' }
+            }])
+          }
+        , (query: string) => {
+            // tslint:disable-next-line:max-line-length
+            expect(query).toBe('SELECT Id, enemy.Id, enemy.name, friend.Id, friend.name FROM forceUsers WHERE (( enemy.Type = \'Jedi\' ) AND ( friend.Type = \'Jedi\' ))')
+            return Promise.resolve([{
+              Id: 2
+            , enemy: { Id: 21, name: 'Samuel L. Jackson' }
+            , friend: { Id: 22, name: 'Obi-Wan Kenobi' }
+            }])
+          }
+        ]
+
+    // tslint:disable-next-line:no-let prefer-const
+    let count = 0
+
+    const test = (query: string) => {
+      const fun = tests[count]
+      if (!fun) throw new Error('Not enough tests')
+      const res = fun(query)
+      count++
+
+      return res
+    }
+
+    const gqlQuery = `
+      query {
+        forceUsers {
+          Id
+          enemy {
+            __typename
+            ... on Sith {
+              name
+              color
+            }
+            ... on Jedi {
+              name
+            }
+          }
+          friend {
+            __typename
+            ... on Jedi {
               name
             }
           }
@@ -656,8 +746,10 @@ describe('resolver', () => {
     return boilerplate([jedi, sith, forceUser, rootQuery], rootQuery, test, gqlQuery)
       .then(v => expect(v).toEqual({
         forceUsers: [
-          { user: {__typename: 'Jedi', name: 'Obi-Wan Kenobi'}}
-        , { user: {__typename: 'Sith', name: 'Darth Maul'}}
+          { Id: 1, enemy: { name: 'Darth Maul', color: 'red', __typename: 'Sith' }
+          , friend: { name: 'Obi-Wan Kenobi', __typename: 'Jedi' } }
+        , { Id: 2, enemy: { name: 'Samuel L. Jackson', __typename: 'Jedi' }
+          , friend: { name: 'Obi-Wan Kenobi', __typename: 'Jedi' } }
         ]
       }))
   })

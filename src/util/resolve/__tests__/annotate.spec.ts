@@ -93,7 +93,6 @@ describe('annotateFieldSet', () => {
   })
 
   it('properly annotates an abstract object', () => {
-    expect.assertions(22)
     const jedi = salesforceObjectConfig('Jedi', 'A Jedi', {
       name: leafField(GraphQLString, 'string', true, 'This jedi\'s name')
     , Master: parentField(['Jedi'], 'This jedi\'s Master')

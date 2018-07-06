@@ -133,7 +133,8 @@ export const getQueryInfo = (field: AnnotatedFieldSet): ConcreteQueryInfo => {
 }
 
 export const parseFieldsAndParents
-  = (qInfo: ConcreteQueryInfo): Either<string, { object: string, fields: string[], parents: ParentQuery[], args: any }> => {
+  = (qInfo: ConcreteQueryInfo): Either<string,
+  { object: string, fields: string[], parents: ParentQuery[], args: any }> => {
     const object = qInfo.field.fieldName
     // always include the Id field so we have some reference for filtering with sub-resolvers
     const fields = [...new Set(['Id', ...qInfo.leafs.map(l => l.fieldName)])]
