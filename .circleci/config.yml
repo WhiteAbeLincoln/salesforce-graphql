@@ -4,7 +4,7 @@ jobs:
   "node-8":
     docker:
       - image: circleci/node:8
-    working_directory: ~/typescript-starter
+    working_directory: ~/graphql-salesforce
     steps:
       - checkout
       # Download and cache dependencies
@@ -19,12 +19,12 @@ jobs:
             - node_modules
           key: v1-dependencies-{{ checksum "package.json" }}
       - run: npm test
-      - run: npx nyc report --reporter=lcov | npx codecov
+      - run: npx jest --coverage --coverageReporters='lcov'; npx codecov
       - run: npm run cov:check
   "node-latest":
     docker:
       - image: circleci/node:latest
-    working_directory: ~/typescript-starter
+    working_directory: ~/graphql-salesforce
     steps:
       - checkout
       - restore_cache:
@@ -37,7 +37,7 @@ jobs:
             - node_modules
           key: v1-dependencies-{{ checksum "package.json" }}
       - run: npm test
-      - run: npx nyc report --reporter=lcov | npx codecov
+      - run: npx jest --coverage --coverageReporters='lcov'; npx codecov
       - run: npm run cov:check
 
 workflows:
