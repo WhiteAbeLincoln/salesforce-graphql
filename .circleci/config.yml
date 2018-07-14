@@ -11,6 +11,7 @@ whitelist: &whitelist
     - LICENSE
     - package.json
     - package-lock.json
+    - __mocks/*
     - build/*
     - node_modules/*
     - src/*
