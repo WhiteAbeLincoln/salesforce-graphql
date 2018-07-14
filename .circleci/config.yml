@@ -1,6 +1,93 @@
 # https://circleci.com/docs/2.0/language-javascript/
+defaults: &defaults
+  working_directory: ~/repo
+  docker:
+    - image: circleci/node:latest
+
+whitelist: &whitelist
+  paths:
+    - .npmignore
+    - tsconfig.json
+    - LICENSE
+    - package.json
+    - package-lock.json
+    - build/*
+    - node_modules/*
+    - src/*
+    - scripts/*
+    - tslint.json
+    - coverage/*
+
 version: 2
+
 jobs:
+  checkout:
+    <<: *defaults
+
+    steps:
+      - checkout
+      # Download and cache dependencies
+      - restore_cache:
+          keys:
+          - v1-dependencies-{{ checksum "package.json" }}
+          # fallback to using the latest cache if no exact match is found
+          - v1-dependencies-
+      - run:
+          name: Install Dependencies
+          command: npm install
+      - save_cache:
+          paths:
+            - node_modules
+          key: v1-dependencies-{{ checksum "package.json" }}
+      - persist_to_workspace:
+          root: ~/repo
+          <<: *whitelist
+    
+  test:
+    <<: *defaults
+
+    steps:
+      - attach_workspace:
+          at: ~/repo
+
+      - run:
+          name: Lint
+          command: npm run test:lint
+
+      - run:
+          name: Unit Test
+          command: npm run test:unit
+
+      - run:
+          name: Security Check
+          command: npm run test:security
+    
+  coverage:
+    <<: *defaults
+
+    steps:
+      - attach_workspace:
+          at: ~/repo
+    
+      - run:
+          name: Upload Coverage to codecov.io
+          command: npx jest --coverage --coverageReporters='lcov'; npx codecov
+
+  build:
+    <<: *defaults
+    
+    steps:
+      - attach_workspace:
+          at: ~/repo
+
+      - run:
+          name: Build Typescript
+          command: npm run build
+
+      - persist_to_workspace:
+          root: ~/repo
+          <<: *whitelist
+
   "node-8":
     docker:
       - image: circleci/node:8
@@ -19,30 +106,70 @@ jobs:
             - node_modules
           key: v1-dependencies-{{ checksum "package.json" }}
       - run: npm test
-      - run: npx jest --coverage --coverageReporters='lcov'; npx codecov
       - run: npm run cov:check
-  "node-latest":
-    docker:
-      - image: circleci/node:latest
-    working_directory: ~/graphql-salesforce
+      - run: npm run build
+
+  deploy:
+    <<: *defaults
+
     steps:
-      - checkout
-      - restore_cache:
-          keys:
-          - v1-dependencies-{{ checksum "package.json" }}
-          - v1-dependencies-
-      - run: npm install
-      - save_cache:
-          paths:
-            - node_modules
-          key: v1-dependencies-{{ checksum "package.json" }}
-      - run: npm test
-      - run: npx jest --coverage --coverageReporters='lcov'; npx codecov
-      - run: npm run cov:check
+      - attach_workspace:
+          at: ~/repo
+      - run: 
+          name: Write NPM Token to ~/.npmrc
+          command: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+      - run:
+          name: Write version to package.json
+          command: npx dot-json package.json version ${CIRCLE_TAG:1}
+      - run: 
+          name: Publish to NPM
+          command: npm publish build/
 
 workflows:
   version: 2
   build:
     jobs:
+      - checkout
+      - test:
+          requires:
+            - checkout
+      - coverage:
+          requires:
+            - test
+      - build:
+          requires:
+            - test
       - "node-8"
-      - "node-latest"
+
+  # circleci does some weird stuff if its running for a tagged release
+  # so we have to 
+  release:
+    jobs:
+      - checkout:
+          filters:
+            tags:
+              only: /v[0-9]+(\.[0-9]+)*/
+      - test:
+          filters:
+            tags:
+              only: /v[0-9]+(\.[0-9]+)*/
+          requires:
+            - checkout
+      - coverage:
+          filters:
+            tags:
+              only: /v[0-9]+(\.[0-9]+)*/
+          requires:
+            - test
+      - build:
+          filters:
+            tags:
+              only: /v[0-9]+(\.[0-9]+)*/
+          requires:
+            - test
+      - deploy:
+          filters:
+            tags:
+              only: /v[0-9]+(\.[0-9]+)*/
+          requires:
+            - build
