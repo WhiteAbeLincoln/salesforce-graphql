@@ -64,7 +64,7 @@
     "graphql-iso-date": "^3.5.0",
     "immutable-containers": "^0.1.0",
     "isemail": "^3.1.2",
-    "jsforce": "^1.8.4",
+    "jsforce": "^1.8.5",
     "mem": "^3.0.0"
   },
   "devDependencies": {
