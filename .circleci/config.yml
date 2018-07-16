@@ -76,7 +76,8 @@ jobs:
 
       - run:
           name: Upload coverage result to codecov
-          command: '[ -d "$CIRCLE_WORKING_DIRECTORY"/coverage ] && npx codecov'
+          # circleci bash doesn't expand the home tilde
+          command: '[ -d "${CIRCLE_WORKING_DIRECTORY/#\~/$HOME}"/coverage ] && npx codecov'
           when: always
 
   build:
