@@ -71,8 +71,12 @@ jobs:
           at: ~/repo
     
       - run:
-          name: Upload Coverage to codecov.io
-          command: npx jest --coverage --coverageReporters='lcov'; npx codecov
+          name: Run coverage check
+          command: npx jest --coverage --coverageReporters='lcov'
+      - run:
+          name: Upload coverage result to codecov
+          command: [ -d "$CIRCLE_WORKING_DIRECTORY"/coverage ] && npx codecov
+          when: always
 
   build:
     <<: *defaults
@@ -88,27 +92,6 @@ jobs:
       - persist_to_workspace:
           root: ~/repo
           <<: *whitelist
-
-  "node-8":
-    docker:
-      - image: circleci/node:8
-    working_directory: ~/graphql-salesforce
-    steps:
-      - checkout
-      # Download and cache dependencies
-      - restore_cache:
-          keys:
-          - v1-dependencies-{{ checksum "package.json" }}
-          # fallback to using the latest cache if no exact match is found
-          - v1-dependencies-
-      - run: npm install
-      - save_cache:
-          paths:
-            - node_modules
-          key: v1-dependencies-{{ checksum "package.json" }}
-      - run: npm test
-      - run: npm run cov:check
-      - run: npm run build
 
   deploy:
     <<: *defaults
@@ -132,48 +115,21 @@ workflows:
     jobs:
       - checkout
       - test:
-          requires:
-            - checkout
-      - coverage:
-          requires:
-            - test
-      - build:
-          requires:
-            - test
-      - "node-8"
-
-  # circleci does some weird stuff if its running for a tagged release
-  # so we have to 
-  release:
-    jobs:
-      - checkout:
           filters:
             tags:
-              only: /v[0-9]+(\.[0-9]+)*/
-            branches:
-              ignore: /.*/
-      - test:
-          filters:
-            tags:
-              only: /v[0-9]+(\.[0-9]+)*/
-            branches:
-              ignore: /.*/
+              only: /.*/
           requires:
             - checkout
       - coverage:
           filters:
             tags:
-              only: /v[0-9]+(\.[0-9]+)*/
-            branches:
-              ignore: /.*/
+              only: /.*/
           requires:
             - test
       - build:
           filters:
             tags:
-              only: /v[0-9]+(\.[0-9]+)*/
-            branches:
-              ignore: /.*/
+              only: /.*/
           requires:
             - test
       - deploy:
@@ -184,3 +140,4 @@ workflows:
               ignore: /.*/
           requires:
             - build
+
