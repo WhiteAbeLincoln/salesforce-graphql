@@ -20,6 +20,7 @@ whitelist: &whitelist
     - scripts/*
     - tslint.json
     - coverage/*
+    - .git/*
 
 jobs:
   checkout:
