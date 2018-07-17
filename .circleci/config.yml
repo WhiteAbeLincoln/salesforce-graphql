@@ -67,11 +67,16 @@ jobs:
 
       - run:
           name: Unit Test
-          command: npm run test:unit
+          command: npm run test:unit:ci
+          environment:
+            JEST_JUNIT_OUTPUT: "reports/jest/js-test-results.xml"
 
       - run:
           name: Security Check
           command: npm run test:security
+
+      - store_test_results:
+          path: "reports"
     
   coverage:
     <<: *defaults
