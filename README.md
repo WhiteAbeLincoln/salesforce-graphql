@@ -1,5 +1,5 @@
 # salesforce-graphql
-[![CircleCI](https://circleci.com/gh/WhiteAbeLincoln/salesforce-graphql/tree/master.svg?style=shield)](https://circleci.com/gh/WhiteAbeLincoln/salesforce-graphql/tree/master) [![codecov](https://codecov.io/gh/WhiteAbeLincoln/salesforce-graphql/branch/master/graph/badge.svg)](https://codecov.io/gh/WhiteAbeLincoln/salesforce-graphql) [![Commitizen friendly](https://img.shields.io/badge/commitizen-friendly-brightgreen.svg)](http://commitizen.github.io/cz-cli/) 
+[![CircleCI](https://circleci.com/gh/WhiteAbeLincoln/salesforce-graphql/tree/master.svg?style=shield)](https://circleci.com/gh/WhiteAbeLincoln/salesforce-graphql/tree/master) [![codecov](https://codecov.io/gh/WhiteAbeLincoln/salesforce-graphql/branch/master/graph/badge.svg)](https://codecov.io/gh/WhiteAbeLincoln/salesforce-graphql) [![Commitizen friendly](https://img.shields.io/badge/commitizen-friendly-brightgreen.svg)](http://commitizen.github.io/cz-cli/) [![Greenkeeper badge](https://badges.greenkeeper.io/WhiteAbeLincoln/salesforce-graphql.svg)](https://greenkeeper.io/) 
 
 Create a GraphQL schema for a Salesforce org
 
