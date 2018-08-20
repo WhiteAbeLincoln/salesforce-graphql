@@ -9,8 +9,8 @@ import { GraphQLFieldConfig, GraphQLFieldConfigMap } from 'graphql'
 
 export const buildQuery = (resolver: ResolverMiddleware,
                            rootFields: GraphQLFieldConfigMap<any, any> | null = {},
-                           middleware: Endomorphism<GraphQLFieldConfig<any, any>> = identity) =>
-(descs: DescribeSObjectResult[]) => {
+                           middleware: Endomorphism<GraphQLFieldConfig<any, any>> = identity
+                          ) => (descs: DescribeSObjectResult[]) => {
   const sfObjects = makeObjects(descs)
 
   const rootQuery = salesforceObjectConfig(

@@ -8,6 +8,7 @@ import { Either, either } from 'fp-ts/lib/Either'
 import { sequence } from 'fp-ts/lib/Traversable'
 import { array } from 'fp-ts/lib/Array'
 import { and } from '../functional'
+import { pipe } from 'fp-ts/lib/function'
 
 export interface AuthenticationInfo {
   username: string
@@ -63,10 +64,7 @@ const convertQueryResult = (q: QueryResult<any>): any[] | null => {
   if (!q.records) return null
 
   return q.records.map(r => {
-    return mapObj(v => {
-      if (isQueryResult(v)) return convertQueryResult(v)
-      return v
-    }, r)
+    return mapObj(v => isQueryResult(v) ? convertQueryResult(v) : v, r)
   })
 }
 
@@ -89,6 +87,8 @@ export interface ConditionalQueryInfo {
 }
 
 const getConditionalInfo = (field: AnnotatedFieldSetCondition): ConditionalQueryInfo => {
+  // we could try to reduce duplication between this and getQueryInfo, but I can't get the types to work
+  // TODO: Reduce duplication between getConditionalInfo and getQueryInfo
   if (field.kind === 'concreteCondition') {
     const partitioned = partition(field.children || [], {
       leafs: and(isAnnotatedFieldSet, c => isLeafField(c.configField))
@@ -142,9 +142,8 @@ export const parseFieldsAndParents
     // the sub-resolvers will handle making new requests to get the other data
     const parents = qInfo.parents.map(p =>
       parseFieldsAndParents(p)
-        // FIXME: get rid of this unsafe parentQuery hack
         .chain(({object, fields, parents}) => parentQuery(object, [...fields, ...parents], true))
-    ).map(p => p.map(truncateToDepth(5)).map(removeLeafObjects))
+    ).map(p => p.map(pipe(truncateToDepth(5), removeLeafObjects)))
 
     return sequence(either, array)(parents)
       .map(ps => ({ object, fields, parents: ps, args: qInfo.field.args }))

@@ -10,7 +10,7 @@ import { BooleanExpression, WhereTree, BooleanOp, parseTree } from '../../SOQL/W
 import { soqlQuery, soql } from '../../SOQL/SOQL'
 import { partitionMap, flatten, array } from 'fp-ts/lib/Array'
 import { sequence } from 'fp-ts/lib/Traversable'
-import { identity } from 'fp-ts/lib/function'
+import { identity, pipe } from 'fp-ts/lib/function'
 import { getRecordMonoid, getArrayMonoid } from 'fp-ts/lib/Monoid'
 import { liftA2 } from 'fp-ts/lib/Apply'
 import { concat, foldr1C } from '../../util/functional'
@@ -64,16 +64,18 @@ const childResolver = (
       })
     })
     .chain(soql)
-    .map(queryFun(context))
-    .map(ps => ps.then(v => {
-      // this really shouldn't happen, since we already got a parent
-      // object with this id in a previous query, so this query should give a result
-      /* istanbul ignore if */
-      if (!v || v.length === 0) return null
+    .map(pipe(
+      queryFun(context),
+      p => p.then(v => {
+        // this really shouldn't happen, since we already got a parent
+        // object with this id in a previous query, so this query should give a result
+        /* istanbul ignore if */
+        if (!v || v.length === 0) return null
 
-      // because we filter by Id then there should only be one result
-      return v[0][queryInfo.field.fieldName]
-    }))
+        // because we filter by Id then there should only be one result
+        return v[0][queryInfo.field.fieldName]
+      })
+    ))
 }
 
 const basicRequest
@@ -139,6 +141,7 @@ const rootResolver = (
     (p): Either<ConcreteQueryInfo, ConcreteQueryInfo> => p.field.kind === 'abstract' ? left(p) : right(p)
   )
 
+  // abstract parents
   if (parents.left.length > 0) {
     // we combine the parents into a single request using AND where query
     // we have to create all combinations of branches with parent requests
@@ -201,38 +204,38 @@ const rootResolver = (
                       const fieldMappings = query.parents.map(p => ({ field: p.p.field.fieldName, type: p.type }))
 
                       const whereLeaf = query.where
-                      return basicRequest(combinedQueryInfo, w => {
-                        const where = typeof w === 'string'
-                          ? `(( ${w} ) AND ${parseTree(whereLeaf)})`
-                          : w.isLeaf() ? whereLeaf
-                          : new Node('AND' as 'AND', w, whereLeaf)
-
-                        return where
-                      })
+                      return basicRequest(combinedQueryInfo, w =>
+                        typeof w === 'string' ? `(( ${w} ) AND ${parseTree(whereLeaf)})`
+                        : w.isLeaf()          ? whereLeaf
+                        : new Node('AND' as 'AND', w, whereLeaf)
+                      )
                       .chain(soql)
-                      .map(queryFun(context))
-                      .map(ps => ps.then(v =>
-                        v && v.map(v => {
-                          return fieldMappings.reduce((value, field) => ({
-                            ...value
-                          , [field.field]: { ...value[field.field], __gqltype: field.type }
-                          }), v)
-                        })
+                      .map(pipe(
+                        queryFun(context),
+                        p => p.then(v =>
+                          v && v.map(v =>
+                            fieldMappings.reduce((value, field) => ({
+                              ...value
+                            , [field.field]: { ...value[field.field], __gqltype: field.type }
+                            }), v)
+                          )
+                        )
                       ))
                     })
 
-    return sequence(either, array)(queries).map(
-      ps => Promise.all(ps)
-    ).map(p => p.then(vs => {
+    return sequence(either, array)(queries).map(pipe(
+      ps => Promise.all(ps),
+      p => p.then(vs => {
       const combArr: Array<{Id: string}> = flatten(vs.filter((v): v is any[] => v !== null))
       // we need to merge elements with the same id so that the resolver works
       const hash = combArr.reduce((map, c) => {
         return map.set(c.Id, Object.assign(map.get(c.Id) || {}, c))
       }, new Map())
       return hash.values()
-    }))
+    })))
   }
 
+  // concrete
   return basicRequest(queryInfo)
       .chain(soql)
       .map(queryFun(context))
@@ -259,11 +262,13 @@ const parentResolver = (
     )
   )
   .chain(soql)
-  .map(queryFun(context))
-  .map(ps => ps.then(v => {
-    // parent resolvers will always return an object
-      return v && v[0]
-  }))
+  .map(pipe(
+    queryFun(context),
+    ps => ps.then(v =>
+      // parent resolvers will always return an object
+      v && v[0]
+    )
+  ))
 }
 
 export const resolver
@@ -271,8 +276,7 @@ export const resolver
     (rootQuery, objectMap) =>
     (source, _args, context, info) => {
       const parentObj = info.parentType
-      const fieldSet = getFieldSet(info)
-      const annotatedFields = annotateFieldSet(parentObj, fieldSet, objectMap)
+      const annotatedFields = annotateFieldSet(parentObj, getFieldSet(info), objectMap)
 
       const promise = ((): Either<string, Promise<any>> => {
         if (parentObj.name === rootQuery.name) {
