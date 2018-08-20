@@ -1,10 +1,40 @@
-# https://circleci.com/docs/2.0/language-javascript/
 version: 2
+
+# https://circleci.com/docs/2.0/language-javascript/
+defaults: &defaults
+  working_directory: ~/repo
+  docker:
+    - image: circleci/node:latest
+
+whitelist: &whitelist
+  paths:
+    - .npmignore
+    - tsconfig.json
+    - LICENSE
+    - package.json
+    - package-lock.json
+    - __mocks__/*
+    - build/*
+    - node_modules/*
+    - src/*
+    - scripts/*
+    - tslint.json
+    - coverage/*
+    - .git/*
+
+save: &save
+  persist_to_workspace:
+    root: ~/repo
+    <<: *whitelist
+
+restore: &restore
+  attach_workspace:
+    at: ~/repo
+
 jobs:
-  "node-8":
-    docker:
-      - image: circleci/node:8
-    working_directory: ~/typescript-starter
+  checkout:
+    <<: *defaults
+
     steps:
       - checkout
       # Download and cache dependencies
@@ -13,36 +43,127 @@ jobs:
           - v1-dependencies-{{ checksum "package.json" }}
           # fallback to using the latest cache if no exact match is found
           - v1-dependencies-
-      - run: npm install
+      - run:
+          name: Install Dependencies
+          command: npm install
+      # saves to the local node_modules, which gets passed through all jobs
+      - run: 'npm install --no-save greenkeeper-lockfile@2'
+      - run: 'npx greenkeeper-lockfile-update'
       - save_cache:
           paths:
             - node_modules
           key: v1-dependencies-{{ checksum "package.json" }}
-      - run: npm test
-      - run: npx nyc report --reporter=lcov | npx codecov
-      - run: npm run cov:check
-  "node-latest":
-    docker:
-      - image: circleci/node:latest
-    working_directory: ~/typescript-starter
+      - <<: *save
+    
+  test:
+    <<: *defaults
+
     steps:
-      - checkout
-      - restore_cache:
-          keys:
-          - v1-dependencies-{{ checksum "package.json" }}
-          - v1-dependencies-
-      - run: npm install
-      - save_cache:
-          paths:
-            - node_modules
-          key: v1-dependencies-{{ checksum "package.json" }}
-      - run: npm test
-      - run: npx nyc report --reporter=lcov | npx codecov
-      - run: npm run cov:check
+      - <<: *restore
+
+      - run:
+          name: Lint
+          command: npm run test:lint
+
+      - run:
+          name: Unit Test
+          command: npm run test:unit:ci
+          environment:
+            JEST_JUNIT_OUTPUT: "reports/jest/js-test-results.xml"
+
+      - run:
+          name: Security Check
+          command: npm run test:security
+
+      - store_test_results:
+          path: "reports"
+    
+  coverage:
+    <<: *defaults
+
+    steps:
+      - <<: *restore
+    
+      - run:
+          name: Run coverage check
+          command: npx jest --coverage --coverageReporters='lcov'
+
+      - run:
+          name: Upload coverage result to codecov
+          # circleci bash doesn't expand the home tilde
+          command: '[ -d "${CIRCLE_WORKING_DIRECTORY/#\~/$HOME}"/coverage ] && npx codecov'
+          when: always
+
+  build:
+    <<: *defaults
+    
+    steps:
+      - <<: *restore
+
+      - run:
+          name: Build Typescript
+          command: npm run build
+
+      - <<: *save
+
+  greenkeeper:
+    <<: *defaults
+
+    steps:
+      - <<: *restore
+      - run: 'npx greenkeeper-lockfile-upload'
+
+  deploy:
+    <<: *defaults
+
+    steps:
+      - attach_workspace:
+          at: ~/repo
+      - run: 
+          name: Write NPM Token to ~/.npmrc
+          command: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+      - run:
+          name: Write version to package.json
+          command: npx dot-json package.json version ${CIRCLE_TAG:1}
+      - run: 
+          name: Publish to NPM
+          command: npm publish build/
 
 workflows:
   version: 2
   build:
     jobs:
-      - "node-8"
-      - "node-latest"
+      - checkout
+      - test:
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - checkout
+      - coverage:
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - checkout
+      - build:
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - test
+      - greenkeeper:
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - build
+      - deploy:
+          filters:
+            tags:
+              only: /v[0-9]+(\.[0-9]+)*/
+            branches:
+              ignore: /.*/
+          requires:
+            - build
+

@@ -1,0 +1,15 @@
+# This repository uses the Conventional Commits format
+#
+#
+# <type>[optional scope]: <description>
+#
+# [optional body]
+#
+# [optional footer]
+#
+#
+# Possible values for <type>:
+# build, chore, ci, docs, feat, fix, perf, refactor, revert, style, test
+#
+# See http://conventionalcommits.org for examples
+#

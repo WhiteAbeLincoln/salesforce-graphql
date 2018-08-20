@@ -256,7 +256,6 @@ describe('Typeclasses', () => {
     })
 
     // TODO: Write composition law
-    it.skip('fulfills the Composition law')
   })
 
   describe('Alt', () => {
