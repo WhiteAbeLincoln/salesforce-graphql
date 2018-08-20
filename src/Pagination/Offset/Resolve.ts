@@ -271,8 +271,17 @@ const parentResolver = (
   ))
 }
 
+/**
+ * Builds a GraphQL field resolver function using the offset strategy
+ * @param queryFun An query execution function to get data from salesforce
+ */
 export const resolver
   = (queryFun: (context: any) => (query: string) => Promise<any[] | null>): ResolverMiddleware =>
+    /**
+     * @param rootQuery The root Query object
+     * @param objectMap A map of GraphQL objects in the schema
+     * @returns A GraphQL field resolver
+     */
     (rootQuery, objectMap) =>
     (source, _args, context, info) => {
       const parentObj = info.parentType

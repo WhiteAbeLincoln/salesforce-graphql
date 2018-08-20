@@ -44,9 +44,13 @@ export const executeQuery = (info: AuthenticationInfo) => (query: string) => {
   })
 }
 
-export const executeAndConvert = (info: AuthenticationInfo) => (query: string) => {
-  return executeQuery(info)(query).then(convertQueryResult)
-}
+/**
+ * Executes a query using jsforce and parses the result
+ * @param info Authentication information for jsforce
+ * @param query A SOQL query string
+ */
+export const execute = (info: AuthenticationInfo) => (query: string) =>
+  executeQuery(info)(query).then(convertQueryResult)
 
 const isQueryResult = (q: any): q is QueryResult<any> => (
   typeof q === 'object'

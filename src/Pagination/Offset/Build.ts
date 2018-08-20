@@ -7,6 +7,13 @@ import { mergeObjs } from '../../util'
 import { Endomorphism, identity } from 'fp-ts/lib/function'
 import { GraphQLFieldConfig, GraphQLFieldConfigMap } from 'graphql'
 
+/**
+ * Builds a GraphQL root Query object using the Offset method
+ * @param resolver The resolver function
+ * @param rootFields A map of extra fields to add to the root object
+ * @param middleware A middleware function that will be run on the GraphQL field configs
+ * @param descs The SObject describe results from salesforce
+ */
 export const buildQuery = (resolver: ResolverMiddleware,
                            rootFields: GraphQLFieldConfigMap<any, any> | null = {},
                            middleware: Endomorphism<GraphQLFieldConfig<any, any>> = identity

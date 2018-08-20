@@ -6,7 +6,7 @@ import { GraphQLSchema, GraphQLObjectType, GraphQLString,
   GraphQLFieldConfigMap, GraphQLList, GraphQLNonNull } from 'graphql'
 import graphqlHTTP from 'express-graphql'
 import express from 'express'
-import { GetExecutionInfo, executeAndConvert } from '../src/util/resolve/execute'
+import { GetExecutionInfo, execute } from '../src/util/resolve/execute'
 import { compose } from 'fp-ts/lib/function'
 
 if (process.env.SF_USER
@@ -79,7 +79,7 @@ if (process.env.SF_USER
       // tslint:enable:no-expression-statement no-object-mutation
     }
 
-    const jsforceQuery = compose(executeAndConvert, login)
+    const jsforceQuery = compose(execute, login)
 
     const rootQuery = fetchDescribes(false).then(buildQuery(resolver(jsforceQuery), rootFields))
 

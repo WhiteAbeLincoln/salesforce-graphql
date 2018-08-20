@@ -19,7 +19,7 @@ export type DescribeList = ReadonlyArray<Promise<DescribeSObjectResult>>
 
 /**
  * Reads describe files and parses to an object
- * @param paths A list of json files and directories
+ * @param paths A list of json files or directories
  * @returns A promise for an array of promises which resolve to SObjectMetadata objects
  */
 export async function importDescribeFiles(...paths: string[]): Promise<DescribeList> {
@@ -66,7 +66,9 @@ export async function writeDescribeFiles(describes: ReadonlyArray<DescribeSObjec
 
 /**
  * Describes the salesforce objects of an instance
- * @param conn A logged in connection to your salesforce instance
+ * @param username A salesforce username
+ * @param password A salesforce password
+ * @param options Options for the jsforce connection
  * @returns An array of promises which resolve to SObjectMetadata objects
  */
 export async function describeSalesforceObjects(username: string,

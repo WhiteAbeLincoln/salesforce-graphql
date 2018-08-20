@@ -30,8 +30,8 @@
     "cov:send": "node ./scripts/test.js --coverage --coverageReporters='lcov'; codecov",
     "cov:check": "node ./scripts/test.js --coverage",
     "doc": "run-s doc:html && opn docs/index.html",
-    "doc:html": "typedoc src/ --target ES6 --mode file --out docs",
-    "doc:json": "typedoc src/ --target ES6 --mode file --json docs/typedoc.json",
+    "doc:html": "typedoc src/ --target ES6 --mode modules --out docs",
+    "doc:json": "typedoc src/ --target ES6 --mode modules --json docs/typedoc.json",
     "doc:publish": "gh-pages -m \"[ci skip] Updates\" -d docs",
     "version": "standard-version",
     "reset": "git clean -dfx && git reset --hard && npm i",
@@ -93,11 +93,11 @@
     "standard-version": "^4.3.0",
     "trash-cli": "^1.4.0",
     "ts-jest": "^23.0.1",
-    "ts-node": "^7.0.0",
-    "tslint": "^5.10.0",
+    "ts-node": "^7.0.1",
+    "tslint": "^5.11.0",
     "tslint-immutable": "^4.5.1",
-    "typedoc": "^0.11.1",
-    "typescript": "^3.0.0-dev.20180712"
+    "typedoc": "^0.12.0",
+    "typescript": "^3.0.1"
   },
   "jest": {
     "coverageThreshold": {
