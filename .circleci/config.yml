@@ -54,7 +54,7 @@ jobs:
             - node_modules
           key: v1-dependencies-{{ checksum "package.json" }}
       - <<: *save
-    
+
   test:
     <<: *defaults
 
@@ -77,13 +77,13 @@ jobs:
 
       - store_test_results:
           path: "reports"
-    
+
   coverage:
     <<: *defaults
 
     steps:
       - <<: *restore
-    
+
       - run:
           name: Run coverage check
           command: npx jest --coverage --coverageReporters='lcov'
@@ -96,7 +96,7 @@ jobs:
 
   build:
     <<: *defaults
-    
+
     steps:
       - <<: *restore
 
@@ -113,57 +113,20 @@ jobs:
       - <<: *restore
       - run: 'npx greenkeeper-lockfile-upload'
 
-  deploy:
-    <<: *defaults
-
-    steps:
-      - attach_workspace:
-          at: ~/repo
-      - run: 
-          name: Write NPM Token to ~/.npmrc
-          command: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
-      - run:
-          name: Write version to package.json
-          command: npx dot-json package.json version ${CIRCLE_TAG:1}
-      - run: 
-          name: Publish to NPM
-          command: npm publish build/
-
 workflows:
   version: 2
   build:
     jobs:
       - checkout
       - test:
-          filters:
-            tags:
-              only: /.*/
           requires:
             - checkout
       - coverage:
-          filters:
-            tags:
-              only: /.*/
           requires:
             - checkout
       - build:
-          filters:
-            tags:
-              only: /.*/
           requires:
             - test
       - greenkeeper:
-          filters:
-            tags:
-              only: /.*/
           requires:
             - build
-      - deploy:
-          filters:
-            tags:
-              only: /v[0-9]+(\.[0-9]+)*/
-            branches:
-              ignore: /.*/
-          requires:
-            - build
-

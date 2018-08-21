@@ -1,5 +1,15 @@
 #!/bin/sh
 
+while [ $# -gt 0 ]; do
+  case $1 in
+    -E)
+      shift;
+      GIT_PARAMS="$(eval echo \"'$'$1\")"
+    ;;
+  esac
+  shift
+done
+
 FILE="${1:-.commit-msg}"
 
 fullpath() {
@@ -21,7 +31,7 @@ if [ ! -f "$TEMPLATE" ]; then
 fi
 
 shift $#
-set -- "$GIT_PARAMS"
+set -- $GIT_PARAMS
 
 # only apply custom messages when run as a standalone `git commit`
 # ignore `--ammend` commits, merges, or commits with `-m`
@@ -39,6 +49,5 @@ fi
 
 TARGET="$(fullpath "$1")"
 TEMP="$(mktemp commitXXX)"
-cat "$TEMPLATE" >> "$TEMP"
-cat "$TARGET" >> "$TEMP"
+cat "$TEMPLATE" "$TARGET" >> "$TEMP"
 mv "$TEMP" "$TARGET"

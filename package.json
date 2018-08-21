@@ -1,6 +1,6 @@
 {
   "name": "sf-graphql",
-  "version": "1.0.1",
+  "version": "0.0.0-development",
   "description": "Creates a GraphQL schema for a Salesforce instance",
   "main": "./index.js",
   "typings": "./index.d.ts",
@@ -15,7 +15,7 @@
   "scripts": {
     "info": "npm-scripts-info",
     "build": "run-s clean && run-p build:*",
-    "build:main": "tsc -p tsconfig.json",
+    "build:main": "tsc -p tsconfig.json | ./scripts/parseEmitted.sh build/main.emit",
     "fix": "run-s fix:*",
     "fix:tslint": "tslint --fix --project .",
     "test": "run-s build test:*",
@@ -33,14 +33,9 @@
     "doc:html": "typedoc src/ --target ES6 --mode modules --out docs",
     "doc:json": "typedoc src/ --target ES6 --mode modules --json docs/typedoc.json",
     "doc:publish": "gh-pages -m \"[ci skip] Updates\" -d docs",
-    "version": "standard-version",
-    "reset": "git clean -dfx && git reset --hard && npm i",
     "clean": "trash build test docs",
-    "all": "run-s reset test cov:check doc:html",
-    "prepublishOnly": "npm run build && ./scripts/prepublish.sh",
-    "prepare-release": "run-s all version doc:publish",
-    "prepush": "npm test",
-    "preparecommitmsg": "./scripts/commit-template.sh"
+    "prepack": "npm run build && cp -Ra build/* .",
+    "postpack": "./scripts/postpack.sh"
   },
   "scripts-info": {
     "info": "Display information about the package scripts",
@@ -50,10 +45,7 @@
     "watch": "Watch and rebuild the project on save, then rerun relevant tests",
     "cov": "Rebuild, run tests, then create and open the coverage report",
     "doc": "Generate HTML API documentation and open it in a browser",
-    "doc:json": "Generate API documentation in typedoc JSON format",
-    "changelog": "Bump package.json version, update CHANGELOG.md, tag release",
-    "reset": "Delete all untracked files and reset the repo to the last commit",
-    "prepare-release": "One-step: clean, build, test, publish docs, and prep a release"
+    "doc:json": "Generate API documentation in typedoc JSON format"
   },
   "engines": {
     "node": ">=8.9"
@@ -84,13 +76,12 @@
     "express": "^4.16.3",
     "express-graphql": "^0.6.12",
     "gh-pages": "^1.2.0",
-    "husky": "^0.14.3",
+    "husky": "^1.0.0-rc.13",
     "jest": "^23.4.1",
     "jest-junit": "^5.1.0",
     "npm-run-all": "^4.1.2",
     "npm-scripts-info": "^0.3.6",
     "opn-cli": "^3.1.0",
-    "standard-version": "^4.3.0",
     "trash-cli": "^1.4.0",
     "ts-jest": "^23.0.1",
     "ts-node": "^7.0.1",
@@ -160,5 +151,12 @@
     "ignore": [
       "@types/node"
     ]
+  },
+  "husky": {
+    "hooks": {
+      "commit-msg": "commitlint -E HUSKY_GIT_PARAMS",
+      "prepare-commit-msg": "./scripts/commit-template.sh -E HUSKY_GIT_PARAMS",
+      "pre-push": "npm test"
+    }
   }
 }

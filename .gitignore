@@ -3,6 +3,10 @@ build
 test
 src/**.js
 docs
+**.ts
+**.js
+!src/**.ts
+*.emit
 
 coverage
 .nyc_output
