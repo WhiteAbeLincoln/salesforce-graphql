@@ -4,7 +4,8 @@ export interface NonEmptyArray<T> extends Array<T> {
 
 type RefinementTag = { REFTAG: 'REFTAG' }
 
-export type ObjectOmit<T, K extends keyof T> = { [P in Exclude<keyof T, K>]: T[P] }
+export type Omit<T, K extends keyof any> = Pick<T, Exclude<keyof T, K>>
+export type Overwrite<T extends object, U extends object> = Omit<T, keyof T & keyof U> & U
 
 export type Arg1<T extends (...args: any[]) => any> =
   T extends (a: infer ARG, ...args: any[]) => any ? ARG : never

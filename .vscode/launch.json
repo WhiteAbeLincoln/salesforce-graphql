@@ -18,67 +18,18 @@
       "skipFiles": [
         "<node_internals>/**/*.js",
         "${workspaceFolder}/node_modules/**/*.js"
-      ]
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "Debug Project",
-      // we test in `build` to make cleanup fast and easy
-      "cwd": "${workspaceFolder}/build",
-      // Replace this with your project root. If there are multiple, you can
-      // automatically run the currently visible file with: "program": ${file}"
-      "program": "${workspaceFolder}/build/index.js",
-      // "args": ["--no-install"],
-      "outFiles": ["${workspaceFolder}/build/**/*.js"],
-      "skipFiles": [
-        "<node_internals>/**/*.js",
-        "${workspaceFolder}/node_modules/**/*.js"
       ],
-      "preLaunchTask": "npm: build",
-      "smartStep": true,
-      "runtimeArgs": ["--nolazy"],
-      "env": {
-        "TYPESCRIPT_STARTER_REPO_URL": "${workspaceFolder}"
-      }
+      "envFile": "${workspaceFolder}/prod.env"
     },
     {
-      "type": "node",
-      "request": "launch",
-      "name": "Debug cursor example",
-      "program": "${workspaceFolder}/examples/cursorBased.js",
-      "outFiles": ["${workspaceFolder}/build/**/*.js"],
-      "skipFiles": [
-        "<node_internals>/**/*.js",
-        "${workspaceFolder}/node_modules/**/*.js"
-      ],
-      "preLaunchTask": "npm: build",
-      "smartStep": true,
-      "runtimeArgs": ["--nolazy"],
-      "env": {
-        "TYPESCRIPT_STARTER_REPO_URL": "${workspaceFolder}"
-      }
-    },
-    {
-      /// Usage: set appropriate breakpoints in a *.spec.ts file, then open the
-      // respective *.spec.js file to run this task. Once a breakpoint is hit,
-      // the debugger will open the source *.spec.ts file for debugging.
       "type": "node",
       "request": "launch",
       "name": "Debug Test Spec",
       "program": "${workspaceFolder}/scripts/test.js",
       "args": [
         "${file}"
-        // TODO: VSCode's launch.json variable substitution
-        // (https://code.visualstudio.com/docs/editor/variables-reference)
-        // doesn't quite allow us to go from:
-        // `./src/path/to/file.ts` to `./build/main/path/to/file.js`
-        // so the user has to navigate to the compiled file manually. (Close:)
-        // "${workspaceFolder}/build/main/lib/${fileBasenameNoExtension}.js"
       ],
       "skipFiles": ["<node_internals>/**/*.js"],
-      // Consider using `npm run watch` or `yarn watch` for faster debugging
-      // "preLaunchTask": "npm: build",
       // "smartStep": true,
       "runtimeArgs": ["--nolazy"]
     }]

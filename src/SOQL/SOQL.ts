@@ -5,6 +5,7 @@ import { partition, foldRosePaths, unzipEithers, maxHeight } from '../util'
 import { compose, pipe } from 'fp-ts/lib/function'
 import { WhereTree, parseTree } from './WhereTree'
 import { Tree } from 'fp-ts/lib/Tree'
+import { Option, none, some } from 'fp-ts/lib/Option'
 
 export type FilterScope =
   | 'Delegated'
@@ -18,7 +19,7 @@ export type FilterScope =
 /*
   interface ParentQuery<N extends Nat = Four> {
     field: string,
-    subFields: isZero<N> extends 'T' ? string[] : string[] | ParentQuery<Prev<N>>
+    subFields: isZero<N> extends 'T' ? string[] : Array<string | ParentQuery<Prev<N>>>
   }
 */
 
@@ -26,23 +27,35 @@ export type FilterScope =
 export type ParentQueryValue = { kind: 'object' | 'field', value: string }
 export type ParentQuery = Tree<ParentQueryValue>
 
-// because we accept strings as subForests, and transform them into ParentQuery objects without children internally,
-// there is no need to accept empty arrays for children
-export const parentQuery = (field: string, children: NonEmptyArray<ParentQuery | string>): ParentQuery =>
-  new Tree({ kind: 'object' as 'object', value: field }
-    , children.map(c =>
+export function parentQuery(field: string,
+                            selections: ReadonlyArray<ParentQuery | string>,
+                            unsafe = false): Either<string, ParentQuery> {
+  if (selections.length === 0) return left('A parent query must have a non-empty selection set')
+
+  const tree = new Tree({ kind: 'object' as 'object', value: field }
+    , selections.map(c =>
       typeof c === 'string'
         ? new Tree({ kind: 'field' as 'field', value: c }, [])
         : c
     )
   )
 
+  if (unsafe) {
+    // don't validate height of tree if unsafe is true
+    // FIXME: This is a hack to let me parse the graphql query from bottom-up
+    // see parseFieldsAndParents in src/util/resolve/execute.ts
+    return right(tree)
+  }
+
+  return validateParentQuery(tree)
+}
+
 export interface SOQLQueryFilters {
   limit?: number
   offset?: number
   scope?: FilterScope
-  orderBy?: { dir: 'ASC' | 'DESC', nulls?: 'FIRST' | 'LAST' }
-  where?: WhereTree
+  orderBy?: { fields: NonEmptyArray<string>, dir: 'ASC' | 'DESC', nulls?: 'FIRST' | 'LAST' }
+  where?: WhereTree | string
   for?: NonEmptyArray<'VIEW' | 'REFERENCE' | 'UPDATE'>
   update?: NonEmptyArray<'TRACKING' | 'VIEWSTAT'>
 }
@@ -58,24 +71,41 @@ export interface ChildQuery extends SOQLQuery {
   selections: NonEmptyArray<ParentQuery | string>
 }
 
-export const childQuery = (field: string,
-                           selections: NonEmptyArray<ParentQuery | string>,
-                           filters?: SOQLQueryFilters
-                          ): ChildQuery => ({
-  ...soqlQuery(field, selections, filters) as ChildQuery,
-  kind: 'child'
-})
+export interface TypeofQuery {
+  field: 'Owner' | 'Who' | 'What'
+  when: NonEmptyArray<{ object: string, fields: NonEmptyArray<string> }>
+  else?: NonEmptyArray<string>
+}
 
-export type QuerySelection = ParentQuery | ChildQuery | string
+export const childQuery = (field: string,
+                           selections: ReadonlyArray<ParentQuery | string>,
+                           filters?: SOQLQueryFilters
+                          ): Either<string, ChildQuery> => (
+  soqlQuery(field, selections, filters).map(c =>
+    ({
+      ...(c as ChildQuery)
+    , kind: 'child' as 'child'
+    })
+  )
+)
+
+export type QuerySelection = ParentQuery | ChildQuery | TypeofQuery | string
 
 export const soqlQuery = (object: string,
-                          selections: NonEmptyArray<QuerySelection>,
+                          selections: ReadonlyArray<QuerySelection>,
                           filters?: SOQLQueryFilters
-                         ): SOQLQuery => ({
-  object
-, selections
-, ...filters
-})
+                         ): Either<string, SOQLQuery> => {
+  if (selections.length === 0) {
+    return left('Must select at least one field, child query, or parent query')
+  }
+
+  return right(
+    { object
+    , selections: selections as NonEmptyArray<QuerySelection>
+    , ...filters
+    }
+  )
+}
 
 /**
  * Flattens a rose tree into its paths as strings
@@ -100,31 +130,22 @@ const validateParentQuery = (query: ParentQuery): Either<string, ParentQuery> =>
 )
 
 export const soql = (query: SOQLQuery | ChildQuery): Either<string, string> => {
-  if (query.selections.length === 0) {
-    return left(`Must specify at least one of 'fields', 'childQueries', or 'parentQueries'`)
-  }
-
   const partitioned = partition(query.selections, {
     children: (q): q is ChildQuery => typeof q !== 'string' && (q as any).kind === 'child'
   , parents: (q): q is ParentQuery => typeof q !== 'string' && q instanceof Tree
+  , typeof: (q): q is TypeofQuery => typeof q !== 'string' && (q as any).when && (q as any).field
   , fields: (q): q is string => typeof q === 'string'
   })
 
-  const parentQueries
-    = unzipEithers(
-        // Validate that our parentQueries (if any) are not nested more than 5 times
-        // preferably this would be done in the type system, but its not possible in typescript
-        partitioned.parents.map(validateParentQuery)
-      )
-      .map(pqs => flatten(pqs.map(flattenParentQuery)))
+  const pqs
+    = flatten(partitioned.parents.map(flattenParentQuery))
       // No more than 35 child-to-parent relationships can be specified in a query
-      .chain(pqs =>
-          pqs.length > 35
-            ? left(
-                ['No more than 35 child-to-parent relationships can be specified in a query']
-              ) as Left<string[], string[]>
-            : right(pqs) as Right<string[], string[]>
-        )
+  const parentQueries
+    = pqs.length > 35
+        ? left(
+            ['No more than 35 child-to-parent relationships can be specified in a query']
+          ) as Left<string[], string[]>
+        : right(pqs) as Right<string[], string[]>
 
   const fields = right(partitioned.fields) as Right<string[], string[]>
 
@@ -148,16 +169,20 @@ export const soql = (query: SOQLQuery | ChildQuery): Either<string, string> => {
 
   return combined
     .map(pipe(
+  pipe(
   /* SELECT   */   s => `SELECT ${s.join(', ')}`
-  /* TYPEOF   */
+  /* TYPEOF   */ , append(partitioned.typeof.length > 0 && partitioned.typeof.map(parseTypeof).join('\n'))
   /* FROM     */ , append(`FROM ${query.object}`)
+  )
   /* SCOPE    */ , append(typeof query.scope === 'string' && `USING SCOPE ${query.scope}`)
-  /* WHERE    */ , append(typeof query.where !== 'undefined' && `WHERE ${parseTree(query.where)}`)
+  /* WHERE    */ , append(typeof query.where !== 'undefined'
+    && getWhere(query.where).map(w => `WHERE ${w}`).getOrElse(''))
   /* WITH     */
   /* GROUP BY */
   /* ORDER BY */ , append(
       typeof query.orderBy !== 'undefined'
-        && `ORDER BY ${query.orderBy.dir}${query.orderBy.nulls ? ' ' + query.orderBy : ''}`)
+        // tslint:disable-next-line:max-line-length
+        && `ORDER BY ${query.orderBy.fields.join(', ')} ${query.orderBy.dir}${query.orderBy.nulls ? ' NULLS ' + query.orderBy.nulls : ''}`)
   /* LIMIT    */ , append(typeof query.limit === 'number' && `LIMIT ${query.limit}`)
   /* OFFSET   */ , append(typeof query.offset === 'number' && `OFFSET ${query.offset}`)
   /* FOR      */ , append(typeof query.for !== 'undefined' && `FOR ${[...new Set(query.for)].join(', ')}`)
@@ -166,6 +191,24 @@ export const soql = (query: SOQLQuery | ChildQuery): Either<string, string> => {
         && `UPDATE ${[...new Set(query.update)].join(', ')}`)
     ))
     .mapLeft(s => s.join('\n')) // join errors with newline
+}
+
+const parseTypeof = (query: TypeofQuery): string => (
+`TYPEOF ${query.field}
+  ${query.when.map(w =>
+  `WHEN ${w.object} THEN ${w.fields.join(', ')}`
+  ).join('\n')}
+  ${query.else ?
+  `ELSE ${query.else.join(', ')}`
+  : ''}
+END
+`
+)
+
+const getWhere = (where: string | WhereTree): Option<string> => {
+  const whereStr = typeof where === 'string' ? where : parseTree(where)
+
+  return whereStr === '' ? none : some(whereStr)
 }
 
 const append = (appendStr: string | undefined | null | false) => (prependStr: string) =>

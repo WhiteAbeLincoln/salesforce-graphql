@@ -1,5 +1,6 @@
 import { GraphQLScalarType, ValueNode, GraphQLError } from 'graphql'
 import { isStringValueNode } from '../util'
+import { toString } from 'fp-ts/lib/function'
 
 const SFID_REGEX = new RegExp(/^[a-zA-Z0-9]{15}|[a-zA-Z0-9]{18}$/)
 
@@ -7,11 +8,11 @@ export const isSFID = (value: string) => SFID_REGEX.test(value)
 
 const coerceSFID = (value: any) => {
   if (typeof value !== 'string') {
-    throw new TypeError(`Non-string value can't represent SFID: ${value}`)
+    throw new TypeError(`Non-string value can't represent SFID: ${toString(value)}`)
   }
 
   if (!isSFID(value)) {
-    throw new TypeError(`Value does not represent a SFID: ${value}`)
+    throw new TypeError(`Value does not represent a SFID: ${toString(value)}`)
   }
 
   return value
@@ -29,7 +30,7 @@ export const GraphQLSFID = new GraphQLScalarType({
     }
 
     if (!isSFID(valueNode.value)) {
-      throw new GraphQLError(`Expected SFID value but got: ${valueNode.value}`)
+      throw new GraphQLError(`Expected SFID value but got: ${toString(valueNode.value)}`)
     }
 
     return valueNode.value

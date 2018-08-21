@@ -1,13 +1,13 @@
 import { WhereArguments, FilterNode, FilterLeaf } from './WhereArgs'
 import { Either, left, right, Right } from 'fp-ts/lib/Either'
 import { convertOp, ComparisonStringOp } from './Operators'
-import { WhereTreeNode, BooleanOp, WhereTree, parseTree, BooleanExpression } from '../../SOQL/WhereTree'
+import { WhereTreeNode, BooleanOp, WhereTree, BooleanExpression } from '../../SOQL/WhereTree'
 import { mergeTrees, empty, singleton } from '../BinaryTree'
 
-export const getWhereClause = (args: WhereArguments): Either<string, string> => {
+export const getWhereClause = (args: WhereArguments): Either<string, WhereTree | string> => {
   const { filter, filterString } = args
   if (filter) {
-    return convertToProperTree(filter).map(parseTree)
+    return convertToProperTree(filter)
   }
 
   if (filterString) {
@@ -15,7 +15,7 @@ export const getWhereClause = (args: WhereArguments): Either<string, string> => 
     return right(filterString)
   }
 
-  return right('')
+  return right(empty)
 }
 
 const binaryFromForest = ({ AND, OR, NOT }: NonNullable<FilterNode['node']>): Either<string, WhereTreeNode> => {
@@ -29,11 +29,8 @@ const binaryFromForest = ({ AND, OR, NOT }: NonNullable<FilterNode['node']>): Ei
 
   const eitherTrees = forest.map(convertToProperTree)
 
-  /*
-    A NOT node will have a left subtree of a boolean expression and a right subtree of leaf
-  */
-  // tslint:disable-next-line:no-expression-statement
-  if (op === 'NOT') eitherTrees.push(right(empty as WhereTree))
+  //  A NOT node will have a left subtree of a boolean expression and a right subtree of leaf
+  if (op === 'NOT') return mergeTrees(op, ...eitherTrees, right<string, WhereTree>(empty))
 
   return mergeTrees(op, ...eitherTrees)
 }

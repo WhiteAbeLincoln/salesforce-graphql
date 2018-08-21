@@ -39,13 +39,15 @@ export interface AbstractFieldSet {
 }
 
 export interface AbstractFieldSetCondition {
+  kind: 'abstractCondition'
   type: GraphQLAbstractType
-  fields: FieldSetCondition[]
+  children: FieldSetCondition[]
 }
 
 export interface ConcreteFieldSetCondition {
+  kind: 'concreteCondition'
   type: GraphQLObjectType
-  fields: FieldSet[]
+  children: FieldSet[]
 }
 
 export type FieldSetCondition = AbstractFieldSetCondition | ConcreteFieldSetCondition
@@ -98,6 +100,8 @@ const collectFragmentFields = (info: GraphQLResolveInfo,
             case Kind.FRAGMENT_SPREAD: {
               const fragName = selection.name.value
               const frag = fragmentSets[fragName]()
+              // the graphql collect function has a similar check though this should never happen
+              /* istanbul ignore if */
               if (!frag) return none
 
               return frag
@@ -122,11 +126,11 @@ const collectConditionedFragment = (info: GraphQLResolveInfo,
   // if conditionalType was abstract, we get FieldSetCondition[], otherwise FieldSet[]
   const conditionalFields = resolveFields(info, fragmentSets, conditionalType, selection.selectionSet)
 
-  const condition
-    = {
-      type: conditionalType
-    , fields: conditionalFields // if conditionalType is abstract then conditionalFields has type FieldSet[]
-    } as FieldSetCondition
+  const condition: FieldSetCondition
+    = { kind: conditionalType instanceof GraphQLObjectType ? 'concreteCondition' : 'abstractCondition'
+      , type: conditionalType
+      , children: conditionalFields // if conditionalType is abstract then conditionalFields has type FieldSet[]
+      } as FieldSetCondition
     // { x: string } | { x: number } should equal { x: string | number }
     // that is for some cases a union of two records A, B should be
     // assignable to a record where every field x has type A[x] | B[x]

@@ -498,7 +498,7 @@ describe('getFieldSet', () => {
 
             if (ifHuman) {
               expect(ifHuman.type).toBe(info.schema.getType('Human')!)
-              const humanFields = ifHuman.fields as FieldSet[]
+              const humanFields = ifHuman.children as FieldSet[]
               expect(humanFields).toHaveLength(2)
 
               const humanName = humanFields.find(f => f.fieldName === 'name')
@@ -523,7 +523,7 @@ describe('getFieldSet', () => {
             if (ifDroid) {
               expect(ifDroid.type).toBe(info.schema.getType('Droid')!)
 
-              const droidFields = ifDroid.fields as FieldSet[]
+              const droidFields = ifDroid.children as FieldSet[]
               expect(droidFields).toHaveLength(2)
 
               const droidName = droidFields.find(f => f.fieldName === 'name')
@@ -619,7 +619,7 @@ describe('getFieldSet', () => {
 
             if (ifHuman) {
               expect(ifHuman.type).toBe(info.schema.getType('Human')!)
-              const humanFields = ifHuman.fields as FieldSet[]
+              const humanFields = ifHuman.children as FieldSet[]
               expect(humanFields).toHaveLength(1)
 
               const humanPlanet = humanFields.find(f => f.fieldName === 'homePlanet')
@@ -636,7 +636,7 @@ describe('getFieldSet', () => {
             if (ifDroid) {
               expect(ifDroid.type).toBe(info.schema.getType('Droid')!)
 
-              const droidFields = ifDroid.fields as FieldSet[]
+              const droidFields = ifDroid.children as FieldSet[]
               expect(droidFields).toHaveLength(1)
 
               const droidFunction = droidFields.find(f => f.fieldName === 'primaryFunction')
@@ -721,7 +721,7 @@ describe('getFieldSet', () => {
 
             if (ifHuman) {
               expect(ifHuman.type).toBe(info.schema.getType('Human')!)
-              const humanFields = ifHuman.fields as FieldSet[]
+              const humanFields = ifHuman.children as FieldSet[]
               expect(humanFields).toHaveLength(1)
 
               const humanPlanet = humanFields.find(f => f.fieldName === 'homePlanet')
@@ -738,7 +738,7 @@ describe('getFieldSet', () => {
             if (ifDroid) {
               expect(ifDroid.type).toBe(info.schema.getType('Droid')!)
 
-              const droidFields = ifDroid.fields as FieldSet[]
+              const droidFields = ifDroid.children as FieldSet[]
               expect(droidFields).toHaveLength(1)
 
               const droidFunction = droidFields.find(f => f.fieldName === 'primaryFunction')
@@ -845,7 +845,7 @@ describe('getFieldSet', () => {
           expect(ifHuman).toBeDefined()
 
           if (ifHuman) {
-            const humanFields = ifHuman.fields as FieldSet[]
+            const humanFields = ifHuman.children as FieldSet[]
             expect(humanFields).toHaveLength(2)
 
             const name = humanFields.find(c => c.fieldName === 'name')
@@ -933,7 +933,7 @@ describe('getFieldSet', () => {
         expect(ifDroid).toBeDefined()
 
         if (ifHuman) {
-          const humanFields = ifHuman.fields as FieldSet[]
+          const humanFields = ifHuman.children as FieldSet[]
           expect(humanFields).toHaveLength(2)
 
           const name = humanFields.find(c => c.name === 'name')
@@ -956,7 +956,7 @@ describe('getFieldSet', () => {
         }
 
         if (ifDroid) {
-          const droidFields = ifDroid.fields as FieldSet[]
+          const droidFields = ifDroid.children as FieldSet[]
           expect(droidFields).toHaveLength(2)
 
           const droidName = droidFields.find(c => c.name === 'name')
@@ -1059,7 +1059,7 @@ describe('getFieldSet', () => {
       const ifDroid = possibleSets.find(c => c.type.name === 'Droid')
       expect(ifDroid).toBeDefined()
       if (ifDroid) {
-        const droidFields = ifDroid.fields as FieldSet[]
+        const droidFields = ifDroid.children as FieldSet[]
         expect(droidFields).toHaveLength(2)
 
         const droidName = droidFields.find(c => c.fieldName === 'name')
@@ -1109,7 +1109,7 @@ describe('getFieldSet', () => {
           expect(ifHuman).toBeDefined()
 
           if (ifHuman) {
-            const humanFields = ifHuman.fields as FieldSet[]
+            const humanFields = ifHuman.children as FieldSet[]
             expect(humanFields).toHaveLength(3)
 
             const name = humanFields.find(c => c.fieldName === 'name')

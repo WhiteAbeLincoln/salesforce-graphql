@@ -1,9 +1,10 @@
-import { Refinement, Predicate, tuple } from 'fp-ts/lib/function'
+import { Refinement, Predicate, tuple, not } from 'fp-ts/lib/function'
 import { ValueNode, StringValueNode, Kind, IntValueNode } from 'graphql'
 import { cons, flatten, lefts, rights } from 'fp-ts/lib/Array'
 import { Either, left, right } from 'fp-ts/lib/Either'
 import { RefinementType1 } from '../types'
 import { Tree } from 'fp-ts/lib/Tree'
+import { ParentQuery, ParentQueryValue } from '../SOQL/SOQL'
 
 export const joinNames = (n: string[], append = ''): string => {
   return n.reduceRight((p, c) =>
@@ -17,15 +18,12 @@ export function mergeObjs<T>(...objs: Array<{ [x: string]: T}>): { [x: string]: 
 }
 
 // tslint:disable:max-line-length
-export function mapObj<T, U>(f: (value: T, key: string) => U | { key: string, value: U }): (obj: { [x: string]: T }) => { [x: string]: U }
-export function mapObj<T, U>(f: (value: T, key: string) => U | { key: string, value: U }, obj: { [x: string]: T }): { [x: string]: U }
-export function mapObj<T, U>(f: (value: T, key: string) => U | { key: string, value: U }, obj?: { [x: string]: T }): ((obj: { [x: string]: T }) => { [x: string]: U }) | { [x: string]: U } {
+export function mapObj<T, U>(f: (value: T, key: string) => U): (obj: { [x: string]: T }) => { [x: string]: U }
+export function mapObj<T, U>(f: (value: T, key: string) => U, obj: { [x: string]: T }): { [x: string]: U }
+export function mapObj<T, U>(f: (value: T, key: string) => U, obj?: { [x: string]: T }): ((obj: { [x: string]: T }) => { [x: string]: U }) | { [x: string]: U } {
   const fun = (obj: { [x: string]: T }): { [x: string]: U } =>
     mergeObjs(...Object.keys(obj).map(x => {
       const result = f(obj[x], x)
-      if (typeof result === 'object' && (result as any).key && typeof (result as any).value !== 'undefined') {
-        return { [(result as any).key]: (result as any).value }
-      }
       return { [x]: result }
     }))
 
@@ -61,10 +59,14 @@ export const isIntValueNode = (v: ValueNode): v is IntValueNode =>
   // typescript doesn't reduce valueNode's type unless we cast here
   v.kind === (Kind.INT as IntValueNode['kind'])
 
-export const unzip = <A, B>(pair: ReadonlyArray<[A, B]>): [A[], B[]] => (
-  pair.reduce((p, c) => tuple(cons(c[0], p[0]), cons(c[1], p[1])), [[], []] as [A[], B[]])
+export const unzip = <A, B>(ps: ReadonlyArray<[A, B]>): [A[], B[]] => (
+  ps.reduce((p, c) => tuple(cons(c[0], p[0]), cons(c[1], p[1])), [[], []] as [A[], B[]])
 )
 
+/**
+ * Similar to `sequence`, but joins the lefts into a list
+ * @param es The array of eithers
+ */
 export const unzipEithers = <L, R>(es: Array<Either<L, R>>): Either<L[], R[]> => {
   // we should be able to optimize this with a generator
   // and length calculation (it will short circuit as soon as we get one left)
@@ -205,4 +207,33 @@ export function foldRosePaths<A, B>(f: (a: A, b: B) => B, init?: B, tree?: Tree<
     case 2: return fun(init!)
     default: return fun(init!)(tree!)
   }
+}
+
+export function truncateToDepth(depth: number): <T>(tree: Tree<T>) => Tree<T>
+export function truncateToDepth<T>(depth: number, tree: Tree<T>): Tree<T>
+export function truncateToDepth<T>(depth: number, tree?: Tree<T>): Tree<T> | (<T>(t: Tree<T>) => Tree<T>) {
+  const fun = <T>(tree: Tree<T>): Tree<T> => {
+    if (depth === 1) return new Tree(tree.value, [])
+    return new Tree(tree.value, tree.forest.map(truncateToDepth(depth - 1)))
+  }
+
+  switch (arguments.length) {
+    case 1: return fun
+    default: return fun(tree!)
+  }
+}
+
+/**
+ * Returns true if a ParentQuery tree consists of only ParentQueryValues with kind='object'
+ * @param tree The parent query
+ */
+const allObjects = (tree: ParentQuery) => {
+  return tree.reduce(true, (parents, a) => parents && a.kind === 'object')
+}
+
+export const removeLeafObjects = (tree: ParentQuery): ParentQuery => {
+  // I want to remove subtrees that are leafs and have value with kind='object'
+  const forest = tree.forest.filter(not(allObjects)).map(removeLeafObjects)
+
+  return new Tree<ParentQueryValue>(tree.value, forest)
 }

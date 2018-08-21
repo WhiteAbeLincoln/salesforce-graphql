@@ -1,14 +1,13 @@
 import { Option, none, some } from 'fp-ts/lib/Option'
 import { GraphQLBoolean, GraphQLFieldConfig, GraphQLFloat,
   GraphQLInt, GraphQLLeafType, GraphQLNonNull,
-  GraphQLObjectType, GraphQLString, GraphQLUnionType } from 'graphql'
+  GraphQLObjectType, GraphQLString, GraphQLUnionType, GraphQLObjectTypeConfig } from 'graphql'
 import { Field as SObjectField, DescribeSObjectResult, ChildRelationship } from 'jsforce'
 import mem from 'mem'
 import { SalesforceFieldConfig, BuildObjectsMiddleware,
   salesforceObjectConfig, parentField,
   leafField, childField, ObjectConfig,
-  isChildField, isParentField, isLeafField,
-  isReferenceField } from './types'
+  isChildField, isParentField, isLeafField, isGraphQLFieldConfig } from './types'
 import { joinNames, mapObj, mergeObjs } from './util'
 import { GraphQLSFID, GraphQLURL, GraphQLEmailAddress } from './util/GraphQLScalars'
 import { GraphQLDateTime, GraphQLDate, GraphQLTime } from 'graphql-iso-date'
@@ -152,7 +151,9 @@ const createUnion = mem(
   (names: string[], types: GraphQLObjectType[]) =>
     new GraphQLUnionType({ name: joinNames(names, 'Union')
                          , description: `A union of ${names.join(', ')}`
-                         , types }),
+                         , types
+                         , resolveType: value => value.__gqltype
+                        }),
   { cacheKey: (n: string[], _: any) => n.join() }
 )
 
@@ -165,31 +166,16 @@ const genFields = (obj: Readonly<ObjectConfig>,
   type input = ValueOf<typeof fields>
 
   return mapObj<input, GraphQLFieldConfig<any, any>>(field => {
-    if (isLeafField(field)) return middleware(field, fields, obj, gqlObjects)
+    if (isLeafField(field) || isGraphQLFieldConfig(field)) return middleware(field, fields, obj, gqlObjects)
 
-    if (isReferenceField(field)) {
-      const fieldtype = field.type
-      const wrapper: NonNullable<typeof field.wrapper> = field.wrapper || (x => x)
-
-      const type = typeof fieldtype === 'string'
-        ? wrapper(gqlObjects[fieldtype])
-        : wrapper(fieldtype)
-
+    if (isChildField(field)) {
+      const type = gqlObjects[field.referenceTo]
+      const configRef = objectConfigs[field.referenceTo] as ObjectConfig | undefined
       return middleware(
         { ...field
         , type
-        }, fields, obj, gqlObjects
+        }, (configRef && configRef.fields) || {}, obj, gqlObjects
       )
-    }
-
-    if (isChildField(field)) {
-        const type = gqlObjects[field.referenceTo]
-        const configRef = objectConfigs[field.referenceTo] as ObjectConfig | undefined
-        return middleware(
-          { ...field
-          , type
-          }, (configRef && configRef.fields) || {}, obj, gqlObjects
-        )
     }
 
     if (isParentField(field)) {
@@ -237,7 +223,7 @@ export const buildGraphQLObjects =
         /* FIXME: This is undefined behavior: GraphQLJS doesn't say anything about
             keeping fields from the passed configuration object on the constructed object
         */
-        ...obj as any
+        ...obj as GraphQLObjectTypeConfig<any, any>
       , fields: () => genFields(obj, objectsMap, newObjMap, middleware)
       })
 
