@@ -1,10 +1,13 @@
 {
   "name": "sf-graphql",
-  "version": "0.0.0-development",
+  "version": "1.0.0-beta.0",
   "description": "Creates a GraphQL schema for a Salesforce instance",
   "main": "./index.js",
-  "typings": "./index.d.ts",
-  "repository": "https://github.com/WhiteAbeLincoln/salesforce-graphql",
+  "types": "./index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/WhiteAbeLincoln/salesforce-graphql.git"
+  },
   "license": "MIT",
   "keywords": [
     "GraphQL",
@@ -15,7 +18,7 @@
   "scripts": {
     "info": "npm-scripts-info",
     "build": "run-s clean && run-p build:*",
-    "build:main": "tsc -p tsconfig.json | ./scripts/parseEmitted.sh build/main.emit",
+    "build:main": "tsc -p tsconfig.json",
     "fix": "run-s fix:*",
     "fix:tslint": "tslint --fix --project .",
     "test": "run-s build test:*",
@@ -34,7 +37,7 @@
     "doc:json": "typedoc src/ --target ES6 --mode modules --json docs/typedoc.json",
     "doc:publish": "gh-pages -m \"[ci skip] Updates\" -d docs",
     "clean": "trash build test docs",
-    "prepack": "npm run build && cp -Ra build/* .",
+    "prepack": "npm run build && cp -Rav build/* . | ./scripts/parseEmitted.sh build.emit",
     "postpack": "./scripts/postpack.sh"
   },
   "scripts-info": {

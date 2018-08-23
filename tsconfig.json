@@ -19,7 +19,6 @@
 
     /* Debugging Options */
     "pretty": true /* Stylize errors and messages using color and context. */,
-    "listEmittedFiles": true,
 
     "lib": ["es2017", "esnext.asynciterable"],
   },
