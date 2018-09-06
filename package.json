@@ -58,7 +58,7 @@
     "@types/graphql-iso-date": "^3.3.0",
     "@types/jsforce": "^1.8.13",
     "fp-ts": "^1.6.2",
-    "graphql": "^0.13.2",
+    "graphql": "^14.0.2",
     "graphql-iso-date": "^3.5.0",
     "immutable-containers": "^0.1.0",
     "isemail": "^3.1.2",
