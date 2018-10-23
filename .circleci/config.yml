@@ -9,7 +9,8 @@ defaults: &defaults
 whitelist: &whitelist
   paths:
     - .npmignore
-    - tsconfig.json
+    - .gitignore
+    - tsconfig.*
     - LICENSE
     - package.json
     - package-lock.json
