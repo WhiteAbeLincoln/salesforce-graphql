@@ -8,7 +8,7 @@ import { Semigroup } from 'fp-ts/lib/Semigroup'
 import { Monoid } from 'fp-ts/lib/Monoid'
 import { Traversable1 } from 'fp-ts/lib/Traversable'
 import { Applicative } from 'fp-ts/lib/Applicative'
-import { HKT } from 'fp-ts/lib/HKT'
+import { HKT, Type } from 'fp-ts/lib/HKT'
 import { Tree, drawTree as drawRose } from 'fp-ts/lib/Tree'
 import { Alt1 } from 'fp-ts/lib/Alt'
 import { Plus1 } from 'fp-ts/lib/Plus'
@@ -281,7 +281,7 @@ export const bitree: Functor1<URI>
   URI
 , map: (fa, f) => fa.map(f)
 , reduce: (fa, b, f) => fa.reduce(b, f)
-, traverse: F => (ta, f) => ta.traverse(F, f)
+, traverse: <F>(F: Applicative<F>) => <A, B>(ta: Type<URI, A>, f: (a: A) => HKT<F, B>) => ta.traverse(F, f)
 , alt: (fx, fy) => fx.alt(fy)
 , zero: () => empty
 }

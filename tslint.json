@@ -41,5 +41,8 @@
       { "ignore-prefix": ["console.", "process.exit"] }
     ]
     /* end tslint-immutable rules */
+  },
+  "linterOptions": {
+    "exclude": ["src/**/*.json"]
   }
 }

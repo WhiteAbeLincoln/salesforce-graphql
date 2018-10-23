@@ -2,13 +2,19 @@ import Account from '../../../__tests__/describes/Account.desc.json'
 import { DescribeSObjectResult } from 'jsforce'
 import { ResolverMiddleware } from '../../../types'
 import { buildQuery } from '../../Offset'
-import { GraphQLObjectType, GraphQLFieldConfigMap, GraphQLString, GraphQLList, GraphQLFieldConfig } from 'graphql'
+import {
+  GraphQLObjectType,
+  GraphQLFieldConfigMap,
+  GraphQLString,
+  GraphQLList,
+  GraphQLFieldConfig,
+} from 'graphql'
 import { Endomorphism } from 'fp-ts/lib/function'
 
 // tslint:disable:no-expression-statement
 
 describe('buildQuery', () => {
-  const descs: DescribeSObjectResult[] = [Account]
+  const descs: DescribeSObjectResult[] = [Account as any]
   // don't resolve anything since we aren't testing this
   const resolver: ResolverMiddleware = () => () => null
 
@@ -30,9 +36,9 @@ describe('buildQuery', () => {
   it('adds the additional root fields to the root query object unchanged', () => {
     const additionalFields: GraphQLFieldConfigMap<any, any> = {
       name: {
-        type: GraphQLString
-      , description: 'Some additional root field'
-      }
+        type: GraphQLString,
+        description: 'Some additional root field',
+      },
     }
 
     const result = buildQuery(resolver, additionalFields)(descs)
