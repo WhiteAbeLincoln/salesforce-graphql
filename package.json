@@ -78,7 +78,7 @@
     "cz-conventional-changelog": "^2.1.0",
     "express": "^4.16.3",
     "express-graphql": "^0.6.12",
-    "gh-pages": "^1.2.0",
+    "gh-pages": "^2.0.0",
     "husky": "^1.0.0-rc.13",
     "jest": "^23.4.1",
     "jest-junit": "^5.1.0",
