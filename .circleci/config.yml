@@ -47,8 +47,6 @@ jobs:
           name: Install Dependencies
           command: npm install
       # saves to the local node_modules, which gets passed through all jobs
-      - run: 'npm install --no-save greenkeeper-lockfile@2'
-      - run: 'npx greenkeeper-lockfile-update'
       - save_cache:
           paths:
             - node_modules
@@ -111,7 +109,6 @@ jobs:
 
     steps:
       - <<: *restore
-      - run: 'npx greenkeeper-lockfile-upload'
 
 workflows:
   version: 2
