@@ -66,7 +66,7 @@
     "cz-conventional-changelog": "^2.1.0",
     "express": "^4.16.4",
     "express-graphql": "^0.6.12",
-    "fp-ts": "^1.9.0",
+    "fp-ts": "^1.12.0",
     "gh-pages": "^2.0.0",
     "husky": "^1.1.2",
     "jest": "^23.6.0",
