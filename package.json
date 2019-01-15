@@ -43,7 +43,7 @@
     "node": ">=8.9"
   },
   "dependencies": {
-    "@types/graphql": "^0.13.1",
+    "@types/graphql": "^14.0.5",
     "@types/graphql-iso-date": "^3.3.0",
     "graphql": "^0.13.2",
     "graphql-iso-date": "^3.5.0",
