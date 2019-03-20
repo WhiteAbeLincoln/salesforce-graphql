@@ -60,7 +60,7 @@
     "@types/express-graphql": "^0.6.2",
     "@types/jest": "^23.3.7",
     "@types/jsforce": "^1.9.1",
-    "@types/mem": "^1.1.2",
+    "@types/mem": "1.1.2",
     "codecov": "^3.1.0",
     "commitizen": "^3.0.4",
     "cz-conventional-changelog": "^2.1.0",
