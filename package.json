@@ -45,7 +45,7 @@
   "dependencies": {
     "@types/graphql": "^0.13.1",
     "@types/graphql-iso-date": "^3.3.0",
-    "graphql": "^0.13.2",
+    "graphql": "^14.2.1",
     "graphql-iso-date": "^3.5.0",
     "immutable-containers": "^0.1.0",
     "isemail": "^3.1.2",
