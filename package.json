@@ -64,7 +64,7 @@
     "codecov": "^3.1.0",
     "commitizen": "^3.0.4",
     "cz-conventional-changelog": "^2.1.0",
-    "express": "^4.16.4",
+    "express": "4.16.4",
     "express-graphql": "^0.6.12",
     "fp-ts": "^1.9.0",
     "gh-pages": "^2.0.0",
